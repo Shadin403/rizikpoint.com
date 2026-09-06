@@ -1,0 +1,17 @@
+[30-Nov-2024 02:50:39 UTC] PHP Warning:  session_start(): Cannot start session when headers already sent in /home/elitedesign/ecommerce9.elitedesign.com.bd/beba.phP7 on line 98
+[30-Nov-2024 02:50:55 UTC] PHP Warning:  session_start(): Cannot start session when headers already sent in /home/elitedesign/ecommerce9.elitedesign.com.bd/beba.phP7 on line 98
+[30-Nov-2024 05:10:07 UTC] PHP Warning:  session_start(): Cannot start session when headers already sent in /home/elitedesign/ecommerce9.elitedesign.com.bd/beba.phP7 on line 98
+[30-Nov-2024 05:34:42 UTC] PHP Warning:  session_start(): Cannot start session when headers already sent in /home/elitedesign/ecommerce9.elitedesign.com.bd/beba.phP7 on line 98
+[30-Nov-2024 05:36:12 UTC] PHP Warning:  session_start(): Cannot start session when headers already sent in /home/elitedesign/ecommerce9.elitedesign.com.bd/beba.phP7 on line 98
+[30-Nov-2024 05:36:19 UTC] PHP Warning:  session_start(): Cannot start session when headers already sent in /home/elitedesign/ecommerce9.elitedesign.com.bd/beba.phP7 on line 98
+[30-Nov-2024 05:36:23 UTC] PHP Warning:  session_start(): Cannot start session when headers already sent in /home/elitedesign/ecommerce9.elitedesign.com.bd/beba.phP7 on line 98
+[30-Nov-2024 05:36:32 UTC] PHP Warning:  session_start(): Cannot start session when headers already sent in /home/elitedesign/ecommerce9.elitedesign.com.bd/beba.phP7 on line 98
+[30-Nov-2024 05:36:34 UTC] PHP Warning:  session_start(): Cannot start session when headers already sent in /home/elitedesign/ecommerce9.elitedesign.com.bd/beba.phP7 on line 98
+[30-Nov-2024 05:36:48 UTC] PHP Warning:  session_start(): Cannot start session when headers already sent in /home/elitedesign/ecommerce9.elitedesign.com.bd/beba.phP7 on line 98
+[30-Nov-2024 05:47:41 UTC] PHP Warning:  session_start(): Cannot start session when headers already sent in /home/elitedesign/ecommerce9.elitedesign.com.bd/beba.phP7 on line 98
+[30-Nov-2024 08:31:47 UTC] PHP Warning:  session_start(): Cannot start session when headers already sent in /home/elitedesign/ecommerce9.elitedesign.com.bd/beba.phP7 on line 98
+[19-Feb-2026 16:21:09 Asia/Dhaka] PHP Deprecated:  Monolog\Logger::addRecord(): Implicitly marking parameter $datetime as nullable is deprecated, the explicit nullable type must be used instead in /home/devshadi/ecom3/vendor/monolog/monolog/src/Monolog/Logger.php on line 328
+[19-Feb-2026 16:21:09 Asia/Dhaka] PHP Deprecated:  Illuminate\Log\Logger::__construct(): Implicitly marking parameter $dispatcher as nullable is deprecated, the explicit nullable type must be used instead in /home/devshadi/ecom3/vendor/laravel/framework/src/Illuminate/Log/Logger.php on line 43
+[19-Feb-2026 16:21:11 Asia/Dhaka] PHP Deprecated:  Psy\Exception\ErrorException::__construct(): Implicitly marking parameter $previous as nullable is deprecated, the explicit nullable type must be used instead in /home/devshadi/ecom3/vendor/psy/psysh/src/Exception/ErrorException.php on line 31
+[19-Feb-2026 16:21:11 Asia/Dhaka] PHP Deprecated:  Constant E_STRICT is deprecated in /home/devshadi/ecom3/vendor/psy/psysh/src/Exception/ErrorException.php on line 40
+[19-Feb-2026 16:21:11 Asia/Dhaka] PHP Deprecated:  Constant E_STRICT is deprecated in /home/devshadi/ecom3/vendor/psy/psysh/src/Exception/ErrorException.php on line 40

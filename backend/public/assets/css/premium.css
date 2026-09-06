@@ -1,0 +1,103 @@
+/* Premium UI Theme - Antigravity */
+
+:root {
+    --primary: #4F46E5; /* Indigo 600 */
+    --primary-hover: #4338CA; /* Indigo 700 */
+    --accent: #F59E0B; /* Amber 500 */
+    --glass-bg: rgba(255, 255, 255, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.3);
+    --card-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+}
+
+body {
+    background: #F9FAFB;
+    font-family: 'Inter', sans-serif !important;
+    color: #1F2937;
+}
+
+/* Glassmorphism Cards */
+.card, .aiz-main-wrapper .card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    box-shadow: var(--card-shadow);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.15);
+}
+
+/* Premium Buttons */
+.btn-primary {
+    background-color: var(--primary);
+    border-color: var(--primary);
+    border-radius: 10px;
+    padding: 10px 24px;
+    font-weight: 600;
+    letter-spacing: 0.025em;
+    transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-hover);
+    border-color: var(--primary-hover);
+    transform: scale(1.02);
+}
+
+/* Modern Navigation */
+.aiz-nav {
+    background: rgba(255, 255, 255, 0.9) !important;
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--glass-border);
+}
+
+/* Product Card Improvements */
+.aiz-card-box {
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fff;
+}
+
+.aiz-card-box .img-fit {
+    transition: transform 0.5s ease;
+}
+
+.aiz-card-box:hover .img-fit {
+    transform: scale(1.1);
+}
+
+/* Typography Enhancements */
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 700;
+    color: #111827;
+}
+
+/* Smooth Transitions - targeted, not wildcard */
+a, button, .btn, .card, input, .form-control {
+    transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease, color 0.2s ease;
+}
+
+/* Ensure table rows are always visible */
+table tr, table td, table th, tbody tr {
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
