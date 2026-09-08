@@ -45,6 +45,7 @@ function applyDynamicFavicon(settings) {
 }
 
 let settingsPromise = null
+const SETTINGS_LOAD_TIMEOUT_MS = 5000
 function ensureSettingsLoaded(forceFresh = false) {
   if (forceFresh) {
     // Bust the JS-level in-memory + localStorage cache so the next
@@ -54,15 +55,19 @@ function ensureSettingsLoaded(forceFresh = false) {
     globalSettingsLoaded.value = false
   }
   if (!settingsPromise) {
-    settingsPromise = fetchBusinessSettings()
+    const request = fetchBusinessSettings()
+    const timeout = new Promise(resolve => setTimeout(() => resolve([]), SETTINGS_LOAD_TIMEOUT_MS))
+    settingsPromise = Promise.race([request, timeout])
       .then(data => {
-        globalSettings.value = data
+        globalSettings.value = Array.isArray(data) ? data : []
         globalSettingsLoaded.value = true
-        applyDynamicFavicon(data)
+        applyDynamicFavicon(globalSettings.value)
       })
       .catch(err => {
         globalSettingsError.value = err
+        globalSettings.value = []
         globalSettingsLoaded.value = true
+        applyDynamicFavicon([])
       })
   }
   return settingsPromise

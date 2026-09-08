@@ -9,6 +9,7 @@
 // IMPORTANT: Must be a relative path like /api/v2, NOT a full URL.
 // This way Vite proxy forwards the request to the backend and avoids CORS.
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api/v2';
+const API_REQUEST_TIMEOUT_MS = 8_000;
 
 // ─── Backend origin for building storage image URLs ──────────────────────────
 const BACKEND_ORIGIN = import.meta.env.VITE_BACKEND_ORIGIN || 'http://127.0.0.1:8000';
@@ -343,6 +344,8 @@ async function apiFetch(endpoint, options = {}) {
   const url = API_BASE + endpoint;
   const promise = (async () => {
     const fetchOptions = { ...options };
+    const timeoutController = new AbortController();
+    const timeoutId = setTimeout(() => timeoutController.abort(), API_REQUEST_TIMEOUT_MS);
     if (fetchOptions.body && typeof fetchOptions.body === 'object' && !(fetchOptions.body instanceof FormData) && !(fetchOptions.body instanceof Blob)) {
       fetchOptions.body = JSON.stringify(fetchOptions.body);
     }
@@ -353,21 +356,26 @@ async function apiFetch(endpoint, options = {}) {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers || {})
     };
-    const res = await fetch(url, {
-      ...fetchOptions,
-      headers
-    });
-    if (!res.ok) {
-      let payload = null;
-      try { payload = await res.json(); } catch (_) {}
-      const msg = (payload && (payload.message || payload.error)) || 'API ' + res.status + ': ' + endpoint;
-      const err = new Error(msg);
-      err.status = res.status;
-      err.data = payload;
-      err.endpoint = endpoint;
-      throw err;
+    try {
+      const res = await fetch(url, {
+        ...fetchOptions,
+        signal: fetchOptions.signal || timeoutController.signal,
+        headers
+      });
+      if (!res.ok) {
+        let payload = null;
+        try { payload = await res.json(); } catch (_) {}
+        const msg = (payload && (payload.message || payload.error)) || 'API ' + res.status + ': ' + endpoint;
+        const err = new Error(msg);
+        err.status = res.status;
+        err.data = payload;
+        err.endpoint = endpoint;
+        throw err;
+      }
+      return res.json();
+    } finally {
+      clearTimeout(timeoutId);
     }
-    return res.json();
   })();
 
   if (method === 'GET' && options.cache !== 'no-store') {

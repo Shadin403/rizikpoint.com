@@ -13,11 +13,12 @@ const router = useRouter();
 const { totalItems, openCart, subtotal } = useCart();
 const { locale, toggleLocale } = useI18n();
 const { user, isAuthenticated, openAuth, logout } = useAuth();
-const { settings, loading, get } = useBusinessSettings();
+const { settings, get } = useBusinessSettings();
 
 const headerLogo = ref("");
 const logoError = ref(false);
 const appName = ref("");
+const logoLoading = ref(true);
 const menuOpen = ref(false);
 const searchOpen = ref(false);
 const searchQuery = ref("");
@@ -28,6 +29,7 @@ const searchInputRef = ref(null);
 const mobileSearchInputRef = ref(null);
 let searchTimer = null;
 let searchToken = 0;
+let logoLoadingTimer = null;
 
 function syncSettings() {
   headerLogo.value = get("header_logo");
@@ -36,12 +38,19 @@ function syncSettings() {
 
 onMounted(() => {
   syncSettings();
+  // Never leave the navigation skeleton on screen when the settings API is
+  // delayed or blocked. A real logo still replaces the fallback immediately.
+  logoLoadingTimer = window.setTimeout(() => { logoLoading.value = false; }, 1500);
   document.addEventListener("click", closeSearchOnOutsideClick);
 });
-watch(settings, syncSettings);
+watch(settings, (value) => {
+  syncSettings();
+  if (Array.isArray(value) && value.length) logoLoading.value = false;
+});
 onBeforeUnmount(() => {
   document.removeEventListener("click", closeSearchOnOutsideClick);
   if (searchTimer) clearTimeout(searchTimer);
+  if (logoLoadingTimer) clearTimeout(logoLoadingTimer);
 });
 
 function closeSearchOnOutsideClick(event) {
@@ -123,7 +132,7 @@ const vFocus = { mounted: (el) => el.focus() };
     <header class="rp-header">
       <div class="rp-nav-container rp-nav-row">
         <router-link to="/" class="rp-brand" aria-label="Rizik Point home">
-          <template v-if="loading">
+          <template v-if="logoLoading">
             <span class="rp-brand-loading-mark" aria-hidden="true"></span>
             <span class="rp-brand-loading-copy" aria-hidden="true"><i></i><i></i></span>
           </template>
@@ -171,7 +180,7 @@ const vFocus = { mounted: (el) => el.focus() };
     <header class="rp-mobile-header">
       <button type="button" aria-label="Open menu" @click="menuOpen = true"><Menu /></button>
       <router-link to="/" class="rp-mobile-brand">
-        <template v-if="loading"><span class="rp-brand-loading-mark" aria-hidden="true"></span><span class="rp-brand-loading-copy" aria-hidden="true"><i></i><i></i></span></template>
+        <template v-if="logoLoading"><span class="rp-brand-loading-mark" aria-hidden="true"></span><span class="rp-brand-loading-copy" aria-hidden="true"><i></i><i></i></span></template>
         <template v-else><span class="rp-brand-mark" aria-hidden="true"></span><span><b>Rizik Point</b><small>Ready to Cook</small></span></template>
       </router-link>
       <div><button type="button" aria-label="Search" @click="toggleSearch"><Search /></button><button type="button" aria-label="Cart" class="rp-cart-action" @click="openCart"><ShoppingCart /><span v-if="totalItems" class="rp-cart-count">{{ totalItems }}</span></button></div>
