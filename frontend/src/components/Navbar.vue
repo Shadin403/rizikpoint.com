@@ -62,7 +62,7 @@ function toggleSearch() {
   searchOpen.value = !searchOpen.value;
   if (searchOpen.value) {
     requestAnimationFrame(() => {
-      const input = window.innerWidth < 901 ? mobileSearchInputRef.value : searchInputRef.value;
+      const input = window.innerWidth < 1101 ? mobileSearchInputRef.value : searchInputRef.value;
       input?.focus();
     });
   }
@@ -259,7 +259,7 @@ const vFocus = { mounted: (el) => el.focus() };
 .rp-drawer-links a:hover, .rp-drawer-links button:hover { color: #075d32; background: #edf7ee; }
 .rp-drawer-links svg { width: 17px; }
 @media (max-width: 1050px) { .rp-nav-row { grid-template-columns: 190px 1fr auto; } .rp-desktop-links { gap: 14px; } .rp-desktop-links a { font-size: 11px; } .rp-cart-total { display: none; } }
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
   .rp-topbar .rp-nav-container { min-height: 32px; justify-content: center; }
   .rp-topbar .rp-nav-container > strong { display: none; }
   .rp-topbar span { font-size: 10px; }
