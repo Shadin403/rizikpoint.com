@@ -13,7 +13,7 @@ const router = useRouter();
 const { totalItems, openCart, subtotal } = useCart();
 const { locale, toggleLocale } = useI18n();
 const { user, isAuthenticated, openAuth, logout } = useAuth();
-const { settings, get } = useBusinessSettings();
+const { settings, loading, get } = useBusinessSettings();
 
 const headerLogo = ref("");
 const logoError = ref(false);
@@ -123,9 +123,15 @@ const vFocus = { mounted: (el) => el.focus() };
     <header class="rp-header">
       <div class="rp-nav-container rp-nav-row">
         <router-link to="/" class="rp-brand" aria-label="Rizik Point home">
-          <img v-if="headerLogo && !logoError" :src="headerLogo" alt="Rizik Point" @error="logoError = true" />
-          <span v-else class="rp-brand-mark" aria-hidden="true"></span>
-          <span><b>{{ appName }}</b><small>Ready to Cook</small></span>
+          <template v-if="loading">
+            <span class="rp-brand-loading-mark" aria-hidden="true"></span>
+            <span class="rp-brand-loading-copy" aria-hidden="true"><i></i><i></i></span>
+          </template>
+          <template v-else>
+            <img v-if="headerLogo && !logoError" :src="headerLogo" alt="Rizik Point" @error="logoError = true" />
+            <span v-else class="rp-brand-mark" aria-hidden="true"></span>
+            <span><b>{{ appName }}</b><small>Ready to Cook</small></span>
+          </template>
         </router-link>
 
         <nav class="rp-desktop-links" aria-label="Primary navigation">
@@ -164,7 +170,10 @@ const vFocus = { mounted: (el) => el.focus() };
 
     <header class="rp-mobile-header">
       <button type="button" aria-label="Open menu" @click="menuOpen = true"><Menu /></button>
-      <router-link to="/" class="rp-mobile-brand"><span class="rp-brand-mark" aria-hidden="true"></span><span><b>Rizik Point</b><small>Ready to Cook</small></span></router-link>
+      <router-link to="/" class="rp-mobile-brand">
+        <template v-if="loading"><span class="rp-brand-loading-mark" aria-hidden="true"></span><span class="rp-brand-loading-copy" aria-hidden="true"><i></i><i></i></span></template>
+        <template v-else><span class="rp-brand-mark" aria-hidden="true"></span><span><b>Rizik Point</b><small>Ready to Cook</small></span></template>
+      </router-link>
       <div><button type="button" aria-label="Search" @click="toggleSearch"><Search /></button><button type="button" aria-label="Cart" class="rp-cart-action" @click="openCart"><ShoppingCart /><span v-if="totalItems" class="rp-cart-count">{{ totalItems }}</span></button></div>
       <div v-if="searchOpen" class="rp-mobile-search rp-search-wrap"><form class="rp-search-form" @submit.prevent="submitSearch"><Search aria-hidden="true" /><input ref="mobileSearchInputRef" v-focus v-model="searchQuery" type="search" :placeholder="locale === 'bn' ? 'পণ্য খুঁজুন...' : 'Search products...'" @input="onSearchInput" /></form></div>
     </header>
@@ -201,6 +210,10 @@ const vFocus = { mounted: (el) => el.focus() };
 .rp-nav-row { min-height: 82px; display: grid; grid-template-columns: 220px 1fr auto; align-items: center; gap: 20px; }
 .rp-brand, .rp-mobile-brand { display: inline-flex; align-items: center; gap: 9px; color: #075d32; white-space: nowrap; }
 .rp-brand img { width: 150px; max-height: 58px; object-fit: contain; }
+.rp-brand-loading-mark { width: 150px; height: 48px; display: block; border-radius: 6px; background: linear-gradient(90deg, #e7ece8 25%, #f5f7f5 50%, #e7ece8 75%); background-size: 200% 100%; animation: rp-navbar-shimmer 1.4s ease-in-out infinite; }
+.rp-brand-loading-copy { display: flex; flex-direction: column; gap: 6px; }
+.rp-brand-loading-copy i { display: block; width: 92px; height: 14px; border-radius: 4px; background: #e7ece8; animation: rp-navbar-pulse 1.4s ease-in-out infinite; }
+.rp-brand-loading-copy i:last-child { width: 58px; height: 8px; }
 .rp-brand > span:last-child, .rp-mobile-brand > span:last-child { display: flex; flex-direction: column; }
 .rp-brand b, .rp-mobile-brand b { font-size: 20px; line-height: 1; font-weight: 800; letter-spacing: -.8px; }
 .rp-brand small, .rp-mobile-brand small { color: #f56a1d; margin-top: 4px; font-size: 10px; line-height: 1; font-weight: 800; }
@@ -254,4 +267,6 @@ const vFocus = { mounted: (el) => el.focus() };
   .rp-mobile-search .rp-search-form { box-shadow: 0 8px 25px rgba(0,0,0,.14); }
 }
 @media (max-width: 420px) { .rp-topbar span { max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; } }
+@keyframes rp-navbar-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+@keyframes rp-navbar-pulse { 50% { opacity: .55; } }
 </style>

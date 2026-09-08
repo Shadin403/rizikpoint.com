@@ -55,6 +55,48 @@ onMounted(async () => {
 
 <template>
   <main class="rp-home">
+    <template v-if="loading">
+      <div class="rp-home-loading" aria-busy="true" aria-label="Loading home page">
+        <section class="rp-skeleton-hero" aria-hidden="true">
+          <div class="rp-container rp-skeleton-hero-copy">
+            <div class="rp-skeleton-line rp-skeleton-eyebrow"></div>
+            <div class="rp-skeleton-line rp-skeleton-title"></div>
+            <div class="rp-skeleton-line rp-skeleton-title rp-skeleton-title-short"></div>
+            <div class="rp-skeleton-line rp-skeleton-copy"></div>
+            <div class="rp-skeleton-line rp-skeleton-copy rp-skeleton-copy-short"></div>
+            <div class="rp-skeleton-actions"><span></span><span></span></div>
+            <div class="rp-skeleton-customer"><span></span><span></span><span></span><span></span><i></i></div>
+          </div>
+          <div class="rp-skeleton-hero-image"></div>
+        </section>
+
+        <div class="rp-container rp-skeleton-services" aria-hidden="true">
+          <div v-for="i in 3" :key="i" class="rp-skeleton-service"><span></span><div><i></i><i></i></div></div>
+        </div>
+
+        <section class="rp-section rp-container" aria-hidden="true">
+          <div class="rp-skeleton-heading"><div><i></i><i></i></div><span></span></div>
+          <div class="rp-skeleton-categories"><div v-for="i in 8" :key="i"><span></span><i></i></div></div>
+        </section>
+
+        <section class="rp-section rp-container" aria-hidden="true">
+          <div class="rp-skeleton-heading"><div><i></i><i></i></div><span></span></div>
+          <div class="rp-skeleton-products"><div v-for="i in 5" :key="i"><span></span><i></i><i></i><b></b></div></div>
+        </section>
+
+        <div class="rp-container rp-skeleton-promos" aria-hidden="true"><span></span><span></span></div>
+
+        <section class="rp-section rp-container" aria-hidden="true">
+          <div class="rp-skeleton-heading"><div><i></i><i></i></div><span></span></div>
+          <div class="rp-skeleton-products"><div v-for="i in 5" :key="i"><span></span><i></i><i></i><b></b></div></div>
+        </section>
+
+        <div class="rp-container rp-skeleton-values" aria-hidden="true"><span v-for="i in 4" :key="i"></span></div>
+        <div class="rp-skeleton-newsletter" aria-hidden="true"><div class="rp-container"><span></span><b></b></div></div>
+      </div>
+    </template>
+
+    <template v-else>
     <section class="rp-hero" aria-labelledby="home-hero-title">
       <img src="/rizikpoint-grocery-hero.png" alt="Fresh ready-to-cook vegetables and fish arranged on a wooden board" class="rp-hero-image" />
       <div class="rp-hero-shade"></div>
@@ -152,11 +194,61 @@ onMounted(async () => {
         <form v-if="!subscribed" class="rp-subscribe" @submit.prevent="subscribe"><Mail aria-hidden="true" /><label for="newsletter-email" class="sr-only">Email address</label><input id="newsletter-email" v-model="email" type="email" required :placeholder="bn ? 'আপনার ইমেইল ঠিকানা' : 'Your email address'" /><button type="submit">{{ bn ? "সাবস্ক্রাইব" : "Subscribe" }}</button></form>
       </div>
     </section>
+    </template>
   </main>
 </template>
 
 <style scoped>
 .rp-home { --rp-green: #075c32; --rp-green-dark: #064526; --rp-orange: #ed6a25; --rp-ink: #101512; --rp-muted: #667069; background: #fff; color: var(--rp-ink); }
+.rp-home-loading { overflow: hidden; background: #fff; }
+.rp-skeleton-hero { min-height: 560px; position: relative; overflow: hidden; background: #f6f8f6; }
+.rp-skeleton-hero-copy { position: relative; z-index: 1; min-height: 560px; padding-block: 110px 80px; display: flex; flex-direction: column; justify-content: center; gap: 14px; }
+.rp-skeleton-line, .rp-skeleton-heading i, .rp-skeleton-heading span, .rp-skeleton-service i, .rp-skeleton-promos span, .rp-skeleton-newsletter span, .rp-skeleton-newsletter b { display: block; border-radius: 6px; background: linear-gradient(90deg, #e7ece8 25%, #f5f7f5 50%, #e7ece8 75%); background-size: 200% 100%; animation: rp-skeleton-shimmer 1.4s ease-in-out infinite; }
+.rp-skeleton-eyebrow { width: 150px; height: 16px; }
+.rp-skeleton-title { width: min(530px, 68vw); height: 58px; border-radius: 10px; }
+.rp-skeleton-title-short { width: min(420px, 56vw); }
+.rp-skeleton-copy { width: min(430px, 60vw); height: 14px; margin-top: 8px; }
+.rp-skeleton-copy-short { width: min(340px, 48vw); margin-top: 0; }
+.rp-skeleton-actions { display: flex; gap: 14px; margin-top: 18px; }
+.rp-skeleton-actions span { width: 142px; height: 48px; border-radius: 6px; background: #dce7df; animation: rp-skeleton-pulse 1.4s ease-in-out infinite; }
+.rp-skeleton-actions span + span { width: 138px; background: #e8eeea; }
+.rp-skeleton-customer { display: flex; align-items: center; gap: 0; margin-top: 22px; }
+.rp-skeleton-customer span { width: 30px; height: 30px; margin-left: -7px; border: 2px solid #f6f8f6; border-radius: 50%; background: #dce7df; animation: rp-skeleton-pulse 1.4s ease-in-out infinite; }
+.rp-skeleton-customer span:first-child { margin-left: 0; }
+.rp-skeleton-customer i { width: 135px; height: 12px; margin-left: 14px; border-radius: 5px; background: #e0e8e2; animation: rp-skeleton-pulse 1.4s ease-in-out infinite; }
+.rp-skeleton-hero-image { position: absolute; inset: 0 0 0 48%; background: linear-gradient(135deg, #eef2ee, #e3eae4); opacity: .9; animation: rp-skeleton-pulse 1.8s ease-in-out infinite; }
+.rp-skeleton-services { min-height: 102px; margin-top: -42px; position: relative; z-index: 2; display: grid; grid-template-columns: repeat(3, 1fr); align-items: center; padding: 20px 30px; border: 1px solid #edf1ed; border-radius: 8px; background: #fff; box-shadow: 0 16px 40px rgba(17,50,30,.08); }
+.rp-skeleton-service { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 8px 20px; }
+.rp-skeleton-service + .rp-skeleton-service { border-left: 1px solid #edf1ed; }
+.rp-skeleton-service > span { width: 34px; height: 34px; border-radius: 50%; background: #dfe9e1; animation: rp-skeleton-pulse 1.4s ease-in-out infinite; }
+.rp-skeleton-service div { display: flex; flex-direction: column; gap: 7px; }
+.rp-skeleton-service i:first-child { width: 130px; height: 13px; }
+.rp-skeleton-service i:last-child { width: 105px; height: 10px; }
+.rp-skeleton-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 22px; margin-bottom: 25px; }
+.rp-skeleton-heading > div { display: flex; flex-direction: column; gap: 9px; }
+.rp-skeleton-heading i:first-child { width: 220px; height: 30px; }
+.rp-skeleton-heading i:last-child { width: 280px; height: 12px; }
+.rp-skeleton-heading > span { width: 110px; height: 13px; }
+.rp-skeleton-categories { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 20px; }
+.rp-skeleton-categories > div { display: flex; flex-direction: column; align-items: center; gap: 13px; }
+.rp-skeleton-categories span { width: min(100%, 110px); aspect-ratio: 1; border-radius: 50%; background: #edf1ed; animation: rp-skeleton-pulse 1.4s ease-in-out infinite; }
+.rp-skeleton-categories i { width: 70px; height: 11px; border-radius: 5px; background: #e7ece8; animation: rp-skeleton-pulse 1.4s ease-in-out infinite; }
+.rp-skeleton-products { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 24px; }
+.rp-skeleton-products > div { display: flex; flex-direction: column; gap: 10px; }
+.rp-skeleton-products span { aspect-ratio: 1; border-radius: 8px; background: #edf1ed; animation: rp-skeleton-pulse 1.4s ease-in-out infinite; }
+.rp-skeleton-products i { width: 88%; height: 12px; border-radius: 5px; background: #e7ece8; animation: rp-skeleton-pulse 1.4s ease-in-out infinite; }
+.rp-skeleton-products i:nth-child(3) { width: 62%; }
+.rp-skeleton-products b { width: 52%; height: 28px; margin-top: 3px; border-radius: 5px; background: #dce7df; animation: rp-skeleton-pulse 1.4s ease-in-out infinite; }
+.rp-skeleton-promos { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding-top: 58px; }
+.rp-skeleton-promos span { min-height: 250px; border-radius: 8px; }
+.rp-skeleton-values { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; padding-block: 68px 48px; }
+.rp-skeleton-values span { height: 58px; border-radius: 30px; background: #edf4ee; animation: rp-skeleton-pulse 1.4s ease-in-out infinite; }
+.rp-skeleton-newsletter { min-height: 130px; padding-block: 30px; background: #f0f8f1; }
+.rp-skeleton-newsletter .rp-container { display: flex; justify-content: space-between; align-items: center; gap: 40px; }
+.rp-skeleton-newsletter span { width: 330px; height: 24px; }
+.rp-skeleton-newsletter b { width: min(480px, 42%); height: 50px; border-radius: 5px; }
+@keyframes rp-skeleton-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+@keyframes rp-skeleton-pulse { 50% { opacity: .55; } }
 .rp-container { width: min(1180px, calc(100% - 40px)); margin-inline: auto; }
 .rp-hero { position: relative; min-height: 560px; overflow: hidden; background: #f7f6f1; }
 .rp-hero-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
@@ -242,35 +334,53 @@ onMounted(async () => {
 @keyframes pulse { 50% { opacity: .5; } }
 @media (max-width: 1023px) {
   .rp-hero, .rp-hero-content { min-height: 500px; }
+  .rp-skeleton-hero, .rp-skeleton-hero-copy { min-height: 500px; }
   .rp-category-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .rp-skeleton-categories { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .rp-product-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .rp-skeleton-products { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .rp-services { padding-inline: 12px; }
+  .rp-skeleton-services { padding-inline: 12px; }
   .rp-service { padding-inline: 12px; }
+  .rp-skeleton-service { padding-inline: 12px; }
   .rp-values { grid-template-columns: repeat(2, 1fr); }
+  .rp-skeleton-values { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 767px) {
   .rp-container { width: min(100% - 28px, 1180px); }
   .rp-hero { min-height: 570px; }
+  .rp-skeleton-hero, .rp-skeleton-hero-copy { min-height: 570px; }
+  .rp-skeleton-hero-image { inset: 42% 0 0; }
+  .rp-skeleton-hero-copy { padding-top: 54px; }
   .rp-hero-image { object-position: 67% center; }
   .rp-hero-shade { background: linear-gradient(180deg, rgba(255,255,255,.94) 0%, rgba(255,255,255,.93) 52%, rgba(255,255,255,.58) 74%, rgba(255,255,255,.2) 100%); }
   .rp-hero-content { min-height: 570px; justify-content: flex-start; padding-top: 54px; }
   .rp-hero h1 { font-size: 42px; max-width: 400px; }
   .rp-hero-copy { max-width: 420px; font-size: 14px; }
   .rp-services { margin-top: -32px; padding: 16px; grid-template-columns: 1fr; }
+  .rp-skeleton-services { margin-top: -32px; padding: 16px; grid-template-columns: 1fr; }
   .rp-service { justify-content: flex-start; padding: 12px; }
+  .rp-skeleton-service { justify-content: flex-start; padding: 12px; }
   .rp-service + .rp-service { border-left: 0; border-top: 1px solid #e7ebe8; }
+  .rp-skeleton-service + .rp-skeleton-service { border-left: 0; border-top: 1px solid #edf1ed; }
   .rp-section { padding-top: 48px; }
   .rp-section-heading { align-items: flex-start; }
   .rp-product-heading { flex-direction: column; }
   .rp-product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .rp-skeleton-products { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
   .rp-promos { grid-template-columns: 1fr; padding-top: 48px; }
+  .rp-skeleton-promos { grid-template-columns: 1fr; padding-top: 48px; }
   .rp-promo { min-height: 220px; padding: 28px; }
+  .rp-skeleton-promos span { min-height: 220px; }
   .rp-newsletter-inner { padding-block: 30px; flex-direction: column; align-items: flex-start; gap: 22px; }
+  .rp-skeleton-newsletter .rp-container { align-items: flex-start; flex-direction: column; gap: 22px; }
+  .rp-skeleton-newsletter span, .rp-skeleton-newsletter b { width: 100%; }
 }
 @media (max-width: 479px) {
   .rp-hero h1 { font-size: 35px; }
   .rp-customer-note { align-items: flex-start; flex-direction: column; }
   .rp-category-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px 8px; }
+  .rp-skeleton-categories { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px 8px; }
   .rp-category { font-size: 10px; }
   .rp-category-image { width: 68px; }
   .rp-section-heading h2 { font-size: 24px; }
@@ -278,6 +388,7 @@ onMounted(async () => {
   .rp-tabs { gap: 16px; }
   .rp-promo > div { max-width: 82%; }
   .rp-values { grid-template-columns: 1fr; }
+  .rp-skeleton-values { grid-template-columns: 1fr; }
   .rp-subscribe > svg { display: none; }
   .rp-subscribe button { padding-inline: 16px; }
 }
