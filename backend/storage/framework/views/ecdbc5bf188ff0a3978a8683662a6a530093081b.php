@@ -82,4 +82,4 @@
     </script>
 
 </body>
-</html><?php /**PATH D:\laragon\www\kachermart\backend\resources\views/backend/layouts/layout.blade.php ENDPATH**/ ?>
+</html><?php /**PATH D:\laragon\www\rizikpoint\backend\resources\views/backend/layouts/layout.blade.php ENDPATH**/ ?>

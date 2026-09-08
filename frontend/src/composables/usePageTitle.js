@@ -20,8 +20,8 @@ import { fetchBusinessSettings } from "@/lib/api";
  *     },
  *   });
  */
-const FALLBACK_NAME_EN = "DealPabo";
-const FALLBACK_NAME_BN = "ডিলপাবো";
+const FALLBACK_NAME_EN = "RizikPoint";
+const FALLBACK_NAME_BN = "রিজিকপয়েন্ট";
 const SEPARATOR = " | ";
 
 // Module-level cache so we only fetch business settings once per page load.

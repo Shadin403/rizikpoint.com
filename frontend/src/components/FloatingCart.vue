@@ -25,7 +25,7 @@ watch(totalItems, (newVal, oldVal) => {
     @click="openCart"
     class="floating-cart-btn fixed right-0 top-1/2 z-40 bg-primary text-white flex flex-col items-center justify-center p-3.5 rounded-l-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] cursor-pointer select-none border-l border-y border-white/10"
     :class="{ 'animate-cart-shake': isAnimating }"
-    aria-label="View Cart"
+    :aria-label="locale === 'bn' ? 'কার্ট দেখুন' : 'View cart'"
   >
     <!-- Cart Icon with Quantity Badge -->
     <div class="relative flex items-center justify-center p-1">
@@ -59,6 +59,11 @@ watch(totalItems, (newVal, oldVal) => {
   width: 76px;
   transform: translate(0, -50%);
   transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s ease, background-color 0.2s ease;
+}
+
+/* Mobile already has a header cart; keep the reading area unobstructed. */
+@media (max-width: 767px) {
+  .floating-cart-btn { display: none; }
 }
 
 .floating-cart-btn:hover {

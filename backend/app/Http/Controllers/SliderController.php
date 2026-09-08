@@ -26,7 +26,10 @@ class SliderController extends Controller
             'photos'      => 'required',
             'url'         => 'nullable|string|max:255',
             'title'       => 'nullable|string|max:255',
+            'description' => 'nullable|string|max:1000',
             'button_text' => 'nullable|string|max:100',
+            'badge'       => 'nullable|string|max:50',
+            'type'        => 'nullable|string|max:50',
         ]);
 
         $ids = $request->input('photos');
@@ -63,8 +66,11 @@ class SliderController extends Controller
         foreach ($uploads as $upload) {
             $slider = new Slider;
             $slider->title       = $request->input('title');
+            $slider->description = $request->input('description');
             $slider->link        = $request->input('url');
             $slider->button_text = $buttonText;
+            $slider->badge       = $request->input('badge');
+            $slider->type        = $request->input('type', 'main');
             $slider->photo       = $upload->file_name;
             $slider->published   = 1;
             $slider->save();
@@ -86,14 +92,6 @@ class SliderController extends Controller
         return view('sliders.index', compact('slider', 'sliders'));
     }
 
-    /**
-     * Update a slider.
-     * Supports two request styles:
-     *   - JSON status toggle (no fields other than _token + status) -> toggles published.
-     *   - Full form update (title, link, button_text, published, optional photo) -> saves all.
-     * The "photo" field can be either an uploaded file OR an aiz-uploader hidden id
-     * (the form posts `photos[]` as comma-separated Upload ids, like in store()).
-     */
     public function update(Request $request, $id)
     {
         $slider = Slider::findOrFail($id);
@@ -102,7 +100,9 @@ class SliderController extends Controller
         $isFullUpdate = $request->hasFile('photo')
             || $request->has('photos')
             || $request->has('title')
+            || $request->has('description')
             || $request->has('url')
+            || $request->has('type')
             || $request->has('button_text');
 
         if (!$isFullUpdate) {
@@ -118,12 +118,18 @@ class SliderController extends Controller
             'photos'      => 'nullable',
             'url'         => 'nullable|string|max:255',
             'title'       => 'nullable|string|max:255',
+            'description' => 'nullable|string|max:1000',
             'button_text' => 'nullable|string|max:100',
+            'badge'       => 'nullable|string|max:50',
+            'type'        => 'nullable|string|max:50',
             'photo'       => 'nullable|image|max:4096',
         ]);
 
-        if ($request->filled('title'))   $slider->title   = $request->input('title');
-        if ($request->has('url'))        $slider->link    = $request->input('url');
+        if ($request->has('title'))       $slider->title       = $request->input('title');
+        if ($request->has('description')) $slider->description = $request->input('description');
+        if ($request->has('url'))        $slider->link        = $request->input('url');
+        if ($request->has('type'))       $slider->type        = $request->input('type', 'main');
+        if ($request->has('badge'))      $slider->badge       = $request->input('badge');
         if ($request->has('button_text')) {
             $btn = $request->input('button_text');
             $slider->button_text = is_string($btn) ? trim($btn) : $btn;

@@ -14,4 +14,4 @@
         </div>
     </div>
 </div><!-- /.modal -->
-<?php /**PATH D:\laragon\www\ecom3\backend\resources\views/modals/delete_modal.blade.php ENDPATH**/ ?>
+<?php /**PATH D:\laragon\www\rizikpoint\backend\resources\views/modals/delete_modal.blade.php ENDPATH**/ ?>

@@ -134,4 +134,4 @@
 
 </body>
 </html>
-<?php /**PATH D:\laragon\www\ecom3\backend\resources\views/backend/layouts/app.blade.php ENDPATH**/ ?>
+<?php /**PATH D:\laragon\www\rizikpoint\backend\resources\views/backend/layouts/app.blade.php ENDPATH**/ ?>

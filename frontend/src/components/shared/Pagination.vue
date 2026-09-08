@@ -37,7 +37,7 @@ function go(p) {
         type="button"
         @click="go(currentPage - 1)"
         :disabled="currentPage <= 1"
-        class="h-9 px-3 inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white text-xs font-bold text-gray-600 hover:border-green-500 hover:text-green-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+        class="h-9 px-3 inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white text-xs font-bold text-gray-600 hover:border-[#168039] hover:text-[#168039] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
       >
         <ChevronLeft class="w-3.5 h-3.5" /> Prev
       </button>
@@ -53,8 +53,8 @@ function go(p) {
           :aria-current="p === currentPage ? 'page' : undefined"
           class="h-9 min-w-9 px-3 inline-flex items-center justify-center rounded-lg border text-xs font-bold transition-colors cursor-pointer"
           :class="p === currentPage
-            ? 'bg-green-600 text-white border-green-600 shadow-sm'
-            : 'bg-white text-gray-600 border-gray-200 hover:border-green-500 hover:text-green-600'"
+            ? 'bg-[#168039] text-white border-[#146c30] shadow-2xs'
+            : 'bg-white text-gray-600 border-gray-200 hover:border-[#168039] hover:text-[#168039]'"
         >
           {{ p }}
         </button>
@@ -64,7 +64,7 @@ function go(p) {
         type="button"
         @click="go(currentPage + 1)"
         :disabled="currentPage >= lastPage"
-        class="h-9 px-3 inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white text-xs font-bold text-gray-600 hover:border-green-500 hover:text-green-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+        class="h-9 px-3 inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white text-xs font-bold text-gray-600 hover:border-[#168039] hover:text-[#168039] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
       >
         Next <ChevronRight class="w-3.5 h-3.5" />
       </button>

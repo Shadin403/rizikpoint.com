@@ -145,8 +145,14 @@ Route::group(['prefix' => 'admin', 'middleware' => ['auth', 'admin']], function(
         Route::post('/sliders/store', 'SliderController@store')->name('sliders.admin.store');
         Route::get('/sliders/destroy/{id}', 'SliderController@destroy')->name('sliders.admin.destroy');
         Route::get('/sliders/edit/{id}', 'SliderController@edit')->name('sliders.admin.edit');
-
         Route::post('/sliders/{id}/update', 'SliderController@update')->name('sliders.admin.update');
+
+        // Home Sections CRUD
+        Route::get('/home-sections', 'HomeSectionController@index')->name('home-sections.index');
+        Route::post('/home-sections/store', 'HomeSectionController@store')->name('home-sections.store');
+        Route::get('/home-sections/edit/{id}', 'HomeSectionController@edit')->name('home-sections.edit');
+        Route::post('/home-sections/{id}/update', 'HomeSectionController@update')->name('home-sections.update');
+        Route::get('/home-sections/destroy/{id}', 'HomeSectionController@destroy')->name('home-sections.destroy');
     });
 
     Route::resource('roles', 'RoleController');

@@ -461,4 +461,4 @@
     </script>
 <?php $__env->stopSection(); ?>
 
-<?php echo $__env->make('backend.layouts.layout', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH D:\laragon\www\kachermart\backend\resources\views/auth/login.blade.php ENDPATH**/ ?>
+<?php echo $__env->make('backend.layouts.layout', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH D:\laragon\www\rizikpoint\backend\resources\views/auth/login.blade.php ENDPATH**/ ?>

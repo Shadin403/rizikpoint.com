@@ -7,6 +7,7 @@ use App;
 
 class Category extends Model
 {
+    protected $guarded = [];
     protected $with = ['category_translations'];
 
     public function getTranslation($field = '', $lang = false){

@@ -1052,6 +1052,11 @@
                                     <span class="aiz-side-nav-text">{{translate('Sliders')}}</span>
                                 </a>
                             </li>
+                            <li class="aiz-side-nav-item">
+                                <a href="{{ route('home-sections.index') }}" class="aiz-side-nav-link {{ areActiveRoutes(['home-sections.index', 'home-sections.edit']) }}">
+                                    <span class="aiz-side-nav-text">{{translate('Homepage Sections')}}</span>
+                                </a>
+                            </li>
                         </ul>
 
                     </li>

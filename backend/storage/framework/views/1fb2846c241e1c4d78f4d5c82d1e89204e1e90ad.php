@@ -158,4 +158,4 @@
         </div>
     </div>
 </div><!-- .aiz-topbar -->
-<?php /**PATH D:\laragon\www\ecom3\backend\resources\views/backend/inc/admin_nav.blade.php ENDPATH**/ ?>
+<?php /**PATH D:\laragon\www\rizikpoint\backend\resources\views/backend/inc/admin_nav.blade.php ENDPATH**/ ?>

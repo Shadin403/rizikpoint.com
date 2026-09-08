@@ -130,6 +130,8 @@ Route::group(['prefix' => 'v2', 'middleware' => ['app_language']], function() {
     Route::delete('sliders/{id}', 'Api\V2\SliderController@destroy');
     Route::patch('sliders/{id}/toggle', 'Api\V2\SliderController@toggle');
 
+    Route::get('home-sections', 'Api\V2\HomeSectionController@index');
+
 
     Route::get('wishlists-check-product', 'Api\V2\WishlistController@isProductInWishlist');
     Route::get('wishlists-add-product', 'Api\V2\WishlistController@add');

@@ -193,6 +193,16 @@
                         <h5 class="mb-0 h6">{{translate('Product Variation')}}</h5>
                     </div>
                     <div class="card-body">
+                        @php
+                            $productColors = json_decode($product->colors, true);
+                            $productColors = is_array($productColors) ? $productColors : [];
+
+                            $productAttributes = json_decode($product->attributes, true);
+                            $productAttributes = is_array($productAttributes) ? $productAttributes : [];
+
+                            $productChoiceOptions = json_decode($product->choice_options);
+                            $productChoiceOptions = is_array($productChoiceOptions) ? $productChoiceOptions : [];
+                        @endphp
                         <div class="form-group row gutters-5">
                             <div class="col-lg-3">
                                 <input type="text" class="form-control" value="{{translate('Colors')}}" disabled>
@@ -203,14 +213,14 @@
                                     <option
                                         value="{{ $color->code }}"
                                         data-content="<span><span class='size-15px d-inline-block mr-2 rounded border' style='background:{{ $color->code }}'></span><span>{{ $color->name }}</span></span>"
-                                        <?php if (in_array($color->code, json_decode($product->colors))) echo 'selected' ?>
+                                        <?php if (in_array($color->code, $productColors, true)) echo 'selected' ?>
                                         ></option>
                                     @endforeach
                                 </select>
                             </div>
                             <div class="col-lg-1">
                                 <label class="aiz-switch aiz-switch-success mb-0">
-                                    <input value="1" type="checkbox" name="colors_active" <?php if (count(json_decode($product->colors)) > 0) echo "checked"; ?> >
+                                    <input value="1" type="checkbox" name="colors_active" <?php if (count($productColors) > 0) echo "checked"; ?> >
                                     <span></span>
                                 </label>
                             </div>
@@ -223,7 +233,7 @@
                             <div class="col-lg-8">
                                 <select name="choice_attributes[]" id="choice_attributes" data-selected-text-format="count" data-live-search="true" class="form-control aiz-selectpicker" multiple data-placeholder="{{ translate('Choose Attributes') }}">
                                     @foreach (\App\Models\Attribute::all() as $key => $attribute)
-                                    <option value="{{ $attribute->id }}" @if($product->attributes != null && in_array($attribute->id, json_decode($product->attributes, true))) selected @endif>{{ $attribute->getTranslation('name') }}</option>
+                                    <option value="{{ $attribute->id }}" @if(in_array($attribute->id, $productAttributes)) selected @endif>{{ $attribute->getTranslation('name') }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -235,7 +245,7 @@
                         </div>
 
                         <div class="customer_choice_options" id="customer_choice_options">
-                            @foreach (json_decode($product->choice_options) as $key => $choice_option)
+                            @foreach ($productChoiceOptions as $key => $choice_option)
                             <div class="form-group row">
                                 <div class="col-lg-3">
                                     <input type="hidden" name="choice_no[]" value="{{ $choice_option->attribute_id }}">
@@ -244,7 +254,7 @@
                                 <div class="col-lg-8">
                                     <select class="form-control aiz-selectpicker attribute_choice" data-live-search="true" name="choice_options_{{ $choice_option->attribute_id }}[]" multiple>
                                         @foreach (\App\Models\AttributeValue::where('attribute_id', $choice_option->attribute_id)->get() as $row)
-                                        <option value="{{ $row->value }}" @if( in_array($row->value, $choice_option->values)) selected @endif>
+                                        <option value="{{ $row->value }}" @if(in_array($row->value, (array) ($choice_option->values ?? []), true)) selected @endif>
                                             {{ $row->value }}
                                         </option>
                                         @endforeach

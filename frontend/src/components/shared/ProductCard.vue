@@ -2,7 +2,7 @@
 import { ref, computed } from "vue";
 import { useCart } from "@/store/cart";
 import { useI18n } from "@/lib/i18n";
-import { ShoppingBasket, ShoppingBag, Star, StarHalf, Check } from "@lucide/vue";
+import { ShoppingBag, Star, StarHalf, Plus, Minus } from "@lucide/vue";
 import { animateFlyToCart } from "@/lib/cart-fly";
 
 const props = defineProps({
@@ -10,7 +10,6 @@ const props = defineProps({
 });
 
 // Resolve image — supports full URL or relative uploads path from backend
-// Laravel serves at: http://127.0.0.1:8000/uploads/all/xxx.webp (no /storage/ prefix)
 const resolvedImage = computed(() => {
   const url = props.deal?.imageUrl;
   if (!url) return null;
@@ -20,12 +19,7 @@ const resolvedImage = computed(() => {
   return `${origin}/${clean}`;
 });
 
-// ── Review / rating ──────────────────────────────────────────────────────────
-// We only trust the API. If `rating` is 0 / null / undefined, there are no real
-// reviews — we render NOTHING (no stars, no count) instead of faking data.
-// `numOfSale` / `usedCount` are SALES counts, not review counts, so we ignore
-// them for the rating display. A separate `reviews_count` (or aliases) from
-// the backend is the only signal we use to display the (N) badge.
+// --- Review / rating ---------------------------------------------------------
 const rawRating = computed(() => {
   const r = parseFloat(props.deal?.rating);
   return Number.isFinite(r) && r > 0 ? r : null;
@@ -35,9 +29,6 @@ const fullStars  = computed(() => hasRating.value ? Math.floor(rawRating.value) 
 const hasHalf    = computed(() => hasRating.value && rawRating.value - fullStars.value >= 0.5);
 const emptyStars = computed(() => hasRating.value ? 5 - fullStars.value - (hasHalf.value ? 1 : 0) : 0);
 
-// Real review count from the backend. Many APIs expose it as `reviews_count`,
-// `review_count`, or `ratings_count`. We accept any of these and require the
-// rating itself to be > 0 before showing a number.
 const reviewCount = computed(() => {
   const n = parseInt(
     props.deal?.reviews_count ??
@@ -49,9 +40,18 @@ const reviewCount = computed(() => {
 });
 const hasReviews = computed(() => hasRating.value && reviewCount.value > 0);
 
-const { addItem, openCart } = useCart();
-const { t, locale } = useI18n();
-const isAdded = ref(false);
+const { items, addItem, updateQuantity, removeItem } = useCart();
+const { t } = useI18n();
+const imageFailed = ref(false);
+
+// Find matching item in cart
+const cartItem = computed(() => {
+  return items.value.find(i => i.id === props.deal.id);
+});
+
+const cartQty = computed(() => {
+  return cartItem.value ? cartItem.value.quantity : 0;
+});
 
 const savings = computed(() => {
   if (props.deal.originalPrice && props.deal.discountedPrice) {
@@ -60,156 +60,167 @@ const savings = computed(() => {
   return null;
 });
 
+// Unit / Weight Text (e.g. 500g, EACH, KG)
+const unitText = computed(() => {
+  if (props.deal?.unit) return props.deal.unit;
+  if (props.deal?.capacity) return props.deal.capacity;
+  if (props.deal?.weight) return props.deal.weight;
+  
+  // Try extracting weight/unit pattern from title
+  const match = props.deal?.title?.match(/\b(\d+(?:\.\d+)?\s*(?:g|kg|pcs|pc|ml|l|ltr|gm|pack))\b/i);
+  if (match) return match[1];
+
+  return 'EACH';
+});
+
+const currentPriceNum = computed(() => {
+  return Number(props.deal?.discountedPrice ?? props.deal?.originalPrice ?? 0);
+});
+
+const formattedPrice = computed(() => {
+  const val = currentPriceNum.value;
+  return `TK ${val.toFixed(2)}`;
+});
+
 function handleAddToCart(event) {
   addItem({
     id: props.deal.id,
     title: props.deal.title,
     imageUrl: props.deal.imageUrl ?? null,
-    price: props.deal.discountedPrice ?? props.deal.originalPrice ?? 0
+    price: currentPriceNum.value,
+    unit: unitText.value
   });
-  animateFlyToCart(event, resolvedImage.value);
-
-  isAdded.value = true;
-  setTimeout(() => {
-    isAdded.value = false;
-  }, 1800);
+  if (event && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    animateFlyToCart(event, resolvedImage.value);
+  }
 }
 
-function handleOrder() {
-  addItem({
-    id: props.deal.id,
-    title: props.deal.title,
-    imageUrl: props.deal.imageUrl ?? null,
-    price: props.deal.discountedPrice ?? props.deal.originalPrice ?? 0
-  });
-  openCart();
+function handleIncrease() {
+  if (!cartItem.value) {
+    handleAddToCart();
+    return;
+  }
+  const targetId = cartItem.value.compositeId || cartItem.value.id;
+  updateQuantity(targetId, cartQty.value + 1);
+}
+
+function handleDecrease() {
+  if (!cartItem.value) return;
+  const targetId = cartItem.value.compositeId || cartItem.value.id;
+  const newQty = cartQty.value - 1;
+  if (newQty <= 0) {
+    removeItem(targetId);
+  } else {
+    updateQuantity(targetId, newQty);
+  }
 }
 </script>
 
 <template>
-  <div class="bg-white rounded-xl shadow-sm overflow-hidden flex flex-col group border border-transparent hover:border-primary/20 hover:shadow-md transition-all duration-200">
-    <router-link :to="`/products/${deal.slug || deal.id}`" class="block">
-      <div class="relative aspect-square bg-gray-100 overflow-hidden">
-        <img
-          v-if="resolvedImage"
-          :src="resolvedImage"
-          :alt="deal.title"
-          class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-          loading="lazy"
-        />
-        <div v-else class="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
-          <ShoppingBag class="w-10 h-10 text-gray-300" />
-        </div>
+  <div class="organic-product bg-white rounded-md border border-[#e5e7eb] hover:border-[#146c30] hover:shadow-xs transition-all duration-150 flex flex-col justify-between overflow-hidden p-2.5 group relative">
+    <!-- Top Content Area -->
+    <div class="flex flex-col flex-1">
+      <!-- Product Image Container -->
+      <router-link :to="`/products/${deal.slug || deal.id}`" class="block rounded-sm focus-visible:outline-2 focus-visible:outline-[#168039]">
+        <div class="organic-product-image relative aspect-square w-full overflow-hidden flex items-center justify-center p-1.5 mb-2 bg-white rounded-sm border border-stone-100">
+          <img
+            v-if="resolvedImage && !imageFailed"
+            :src="resolvedImage"
+            :alt="deal.title"
+            class="w-full h-full object-contain transition-transform duration-200 group-hover:scale-[1.02]"
+            @error="imageFailed = true"
+            loading="lazy"
+          />
+          <div v-else class="w-full h-full flex items-center justify-center bg-gray-50 rounded-sm">
+            <ShoppingBag class="w-10 h-10 text-gray-300" />
+          </div>
 
-        <!-- Discount Badge -->
-        <div v-if="deal.discountPercent > 0" class="absolute top-0 right-0 z-10">
-          <div class="bg-red-600 text-white font-extrabold px-2.5 py-1.5 rounded-bl-lg text-[10px] shadow-sm flex items-center justify-center gap-1 select-none">
-            <template v-if="savings">
-              <span>{{ savings }}৳</span>
-            </template>
-            <template v-else>
-              <span>{{ deal.discountPercent }}%</span>
-            </template>
-            <span>{{ t('discount') }}</span>
+          <!-- Discount Badge -->
+          <div v-if="deal.discountPercent > 0" class="absolute top-1.5 right-1.5 z-10">
+            <div class="bg-[#168039] text-white font-semibold px-2 py-0.5 rounded-[4px] text-[11px] leading-tight shadow-xs select-none">
+              <template v-if="savings">
+                <span>-{{ savings }}৳</span>
+              </template>
+              <template v-else>
+                <span>-{{ deal.discountPercent }}%</span>
+              </template>
+            </div>
           </div>
         </div>
-      </div>
-    </router-link>
-
-    <div class="p-2 flex flex-col gap-1.5 flex-1">
-      <router-link :to="`/products/${deal.slug || deal.id}`">
-        <p class="text-sm font-semibold text-gray-800 line-clamp-2 leading-snug">
-          {{ deal.title }}
-        </p>
       </router-link>
 
-      <!-- Star Rating: rendered only when the backend has a real rating.
-           The (N) badge is rendered only when the backend also reports
-           a positive review count, so we never show a fake "(4)" etc. -->
-      <div v-if="hasRating" class="flex items-center gap-0.5" :title="`${rawRating.toFixed(1)} / 5`">
-        <Star
-          v-for="i in fullStars"
-          :key="'f' + i"
-          class="w-3.5 h-3.5 fill-yellow-400 text-yellow-400"
-        />
-        <StarHalf
-          v-if="hasHalf"
-          class="w-3.5 h-3.5 fill-yellow-400 text-yellow-400"
-        />
-        <Star
-          v-for="i in emptyStars"
-          :key="'e' + i"
-          class="w-3.5 h-3.5 fill-gray-200 text-gray-200"
-        />
-        <span v-if="hasReviews" class="text-xs text-gray-500 ml-1">({{ reviewCount }})</span>
+      <!-- Title -->
+      <router-link :to="`/products/${deal.slug || deal.id}`" class="block focus-visible:outline-2 focus-visible:outline-[#168039]">
+        <h3 class="text-[14px] leading-[21px] font-normal text-[#111827] line-clamp-2 min-h-[2.6rem] hover:text-[#146c30] transition-colors">
+          {{ deal.title }}
+        </h3>
+      </router-link>
+
+      <!-- Unit / Weight / Quantity info -->
+      <div class="text-[12px] font-medium text-[#6b7280] uppercase tracking-wide my-1">
+        {{ unitText }}
+      </div>
+
+      <!-- Rating (optional) -->
+      <div v-if="hasRating" class="flex items-center gap-0.5 mb-1" :title="`${rawRating.toFixed(1)} / 5`">
+        <Star v-for="i in fullStars" :key="'f' + i" class="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+        <StarHalf v-if="hasHalf" class="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+        <Star v-for="i in emptyStars" :key="'e' + i" class="w-3.5 h-3.5 fill-gray-200 text-gray-200" />
+        <span v-if="hasReviews" class="text-[12px] text-[#6b7280] ml-1">({{ reviewCount }})</span>
       </div>
 
       <!-- Price -->
-      <div class="flex items-center gap-2">
-        <span class="text-base font-bold text-orange-500">
-          {{ deal.discountedPrice ?? deal.originalPrice ?? 0 }} {{ t('taka') }}
+      <div class="flex items-baseline gap-2 mt-auto pt-1 mb-2.5">
+        <span class="text-[16px] font-bold text-[#111827] tracking-tight">
+          {{ formattedPrice }}
         </span>
         <span
-          v-if="deal.originalPrice && deal.discountedPrice"
-          class="text-xs text-gray-400 line-through"
+          v-if="deal.originalPrice > deal.discountedPrice && deal.discountedPrice != null"
+          class="text-[12px] text-[#6b7280] line-through font-normal"
         >
-          {{ deal.originalPrice }} {{ t('taka') }}
+          TK {{ Number(deal.originalPrice).toFixed(2) }}
         </span>
       </div>
+    </div>
 
-      <!-- Actions -->
-      <button
-        @click="handleOrder"
-        class="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white text-sm font-semibold py-2 rounded-md transition-colors cursor-pointer"
+    <!-- Bottom Action Button: Add to Cart OR Quantity Control -->
+    <div class="mt-auto pt-1">
+      <!-- Quantity Controller Bar (When item is in cart) -->
+      <div
+        v-if="cartQty > 0"
+        class="w-full bg-[#168039] hover:bg-[#146c30] active:bg-[#146c30] text-white font-medium rounded-[4px] flex items-center justify-between h-9 px-1 shadow-2xs transition-colors select-none border border-[#146c30]"
       >
-        <ShoppingBasket class="w-4 h-4" />
-        {{ t('order_now') }}
-      </button>
+        <button
+          @click.stop="handleDecrease"
+          aria-label="Decrease quantity"
+          class="w-7 h-7 flex items-center justify-center rounded-[4px] hover:bg-black/15 active:bg-black/25 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-white"
+        >
+          <Minus class="w-3.5 h-3.5 stroke-[2.5]" />
+        </button>
 
+        <span class="flex-1 text-center font-semibold text-[14px] leading-none">
+          {{ cartQty }}
+        </span>
+
+        <button
+          @click.stop="handleIncrease"
+          aria-label="Increase quantity"
+          class="w-7 h-7 flex items-center justify-center rounded-[4px] hover:bg-black/15 active:bg-black/25 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-white"
+        >
+          <Plus class="w-3.5 h-3.5 stroke-[2.5]" />
+        </button>
+      </div>
+
+      <!-- Initial Add to Cart Button (When item is NOT in cart) -->
       <button
-        @click="handleAddToCart"
-        class="w-full flex items-center justify-center gap-2 border text-sm font-semibold py-2 rounded-md transition-all duration-300 cursor-pointer relative overflow-hidden"
-        :class="isAdded 
-          ? 'bg-primary border-primary text-white scale-[0.98]' 
-          : 'border-gray-300 hover:border-primary hover:text-primary text-gray-700 bg-white hover:scale-[1.02] active:scale-[0.97]'
-        "
-        :disabled="isAdded"
+        v-else
+        @click.stop="handleAddToCart"
+        :aria-label="`${deal.title}: ${t('add_to_cart')}`"
+        class="w-full h-9 border border-[#168039] text-[#168039] hover:bg-[#168039] hover:text-white bg-white rounded-[4px] text-[13px] font-medium flex items-center justify-center gap-1.5 transition-all shadow-2xs active:bg-[#146c30] cursor-pointer focus-visible:outline-2 focus-visible:outline-[#146c30]"
       >
-        <transition name="btn-text-slide" mode="out-in">
-          <div v-if="isAdded" class="flex items-center justify-center gap-1.5" key="added">
-            <Check class="w-4 h-4 text-white animate-bounce-short" />
-            <span>{{ locale === 'bn' ? 'যোগ করা হয়েছে!' : 'Added!' }}</span>
-          </div>
-          <div v-else class="flex items-center justify-center gap-1.5" key="add">
-            <ShoppingBag class="w-4 h-4" />
-            <span>{{ t('add_to_cart') }}</span>
-          </div>
-        </transition>
+        <ShoppingBag class="w-4 h-4" />
+        <span>{{ t('add_to_cart') }}</span>
       </button>
     </div>
   </div>
 </template>
-
-<style scoped>
-/* Button text slide transition */
-.btn-text-slide-enter-active,
-.btn-text-slide-leave-active {
-  transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
-}
-.btn-text-slide-enter-from {
-  opacity: 0;
-  transform: translateY(8px);
-}
-.btn-text-slide-leave-to {
-  opacity: 0;
-  transform: translateY(-8px);
-}
-
-@keyframes bounce-short {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-3px); }
-}
-.animate-bounce-short {
-  animation: bounce-short 0.5s ease-out 1;
-}
-</style>

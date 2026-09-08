@@ -1053,6 +1053,11 @@
                                     <span class="aiz-side-nav-text"><?php echo e(translate('Sliders')); ?></span>
                                 </a>
                             </li>
+                            <li class="aiz-side-nav-item">
+                                <a href="<?php echo e(route('home-sections.index')); ?>" class="aiz-side-nav-link <?php echo e(areActiveRoutes(['home-sections.index', 'home-sections.edit'])); ?>">
+                                    <span class="aiz-side-nav-text"><?php echo e(translate('Homepage Sections')); ?></span>
+                                </a>
+                            </li>
                         </ul>
 
                     </li>
@@ -1276,4 +1281,4 @@
     </div><!-- .aiz-sidebar -->
     <div class="aiz-sidebar-overlay"></div>
 </div><!-- .aiz-sidebar -->
-<?php /**PATH D:\laragon\www\kachermart\backend\resources\views/backend/inc/admin_sidenav.blade.php ENDPATH**/ ?>
+<?php /**PATH D:\laragon\www\rizikpoint\backend\resources\views/backend/inc/admin_sidenav.blade.php ENDPATH**/ ?>

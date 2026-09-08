@@ -30,7 +30,8 @@ const marqueeLines = computed(() => {
 </script>
 
 <template>
-  <div class="min-h-screen flex flex-col bg-[#f7f7f7]">
+  <div class="min-h-screen flex flex-col bg-background">
+    <a href="#main-content" class="store-skip-link">{{ locale === 'bn' ? 'মূল কনটেন্টে যান' : 'Skip to content' }}</a>
     <!-- Announcement Bar -->
     <div
       v-if="marqueeLines.length > 0"
@@ -54,7 +55,8 @@ const marqueeLines = computed(() => {
 
     <!-- Main Content Container -->
     <main
-      class="flex-1 w-full max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-6 pb-20 md:pb-6 flex flex-col"
+      id="main-content" tabindex="-1"
+      class="flex-1 w-full max-w-[1536px] mx-auto px-3 sm:px-6 lg:px-8 py-6 pb-20 md:pb-6 flex flex-col"
     >
       <router-view v-slot="{ Component }">
         <transition name="fade" mode="out-in">

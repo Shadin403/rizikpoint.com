@@ -97,7 +97,7 @@ class ProductDetailCollection extends ResourceCollection
                     'main_price' => home_discounted_base_price($data),
                     'calculable_price' => $calculable_price,
                     'currency_symbol' => currency_symbol(),
-                    'current_stock' => (integer)$data->stocks->first()->qty,
+                    'current_stock' => (integer)($data->stocks && $data->stocks->first() ? $data->stocks->first()->qty : ($data->current_stock ?? 0)),
                     'unit' => $data->unit,
                     'rating' => (double)$data->rating,
                     'rating_count' => (integer)Review::where(['product_id' => $data->id])->count(),
@@ -123,22 +123,26 @@ class ProductDetailCollection extends ResourceCollection
     protected function convertToChoiceOptions($data)
     {
         $result = array();
-//        if($data) {
-        foreach ($data as $key => $choice) {
-            $item['name'] = $choice->attribute_id;
-            $item['title'] = Attribute::find($choice->attribute_id)->getTranslation('name');
-            $item['options'] = $choice->values;
-            array_push($result, $item);
+        if ($data && (is_array($data) || is_object($data))) {
+            foreach ($data as $key => $choice) {
+                if (!is_object($choice) || !isset($choice->attribute_id)) continue;
+                $attr = Attribute::find($choice->attribute_id);
+                $item['name'] = $choice->attribute_id;
+                $item['title'] = $attr ? $attr->getTranslation('name') : '';
+                $item['options'] = $choice->values ?? [];
+                array_push($result, $item);
+            }
         }
-//        }
         return $result;
     }
 
     protected function convertPhotos($data)
     {
         $result = array();
-        foreach ($data as $key => $item) {
-            array_push($result, api_asset($item));
+        if ($data && (is_array($data) || is_object($data))) {
+            foreach ($data as $key => $item) {
+                array_push($result, api_asset($item));
+            }
         }
         return $result;
     }

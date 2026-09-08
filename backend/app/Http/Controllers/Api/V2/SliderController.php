@@ -23,8 +23,11 @@ class SliderController extends Controller
     {
         $request->validate([
             'title'       => 'nullable|string|max:255',
+            'description' => 'nullable|string|max:1000',
             'link'        => 'nullable|string|max:500',
             'button_text' => 'nullable|string|max:100',
+            'badge'       => 'nullable|string|max:50',
+            'type'        => 'nullable|string|max:50',
             'photo'       => 'nullable|image|max:4096',
         ]);
 
@@ -35,8 +38,11 @@ class SliderController extends Controller
 
         $slider = Slider::create([
             'title'       => $request->input('title'),
+            'description' => $request->input('description'),
             'link'        => $request->input('link', '/products-list'),
             'button_text' => $request->input('button_text'),
+            'badge'       => $request->input('badge'),
+            'type'        => $request->input('type', 'main'),
             'photo'       => $photoPath,
             'published'   => $request->input('published', 1),
         ]);
@@ -55,8 +61,11 @@ class SliderController extends Controller
 
         $request->validate([
             'title'       => 'nullable|string|max:255',
+            'description' => 'nullable|string|max:1000',
             'link'        => 'nullable|string|max:500',
             'button_text' => 'nullable|string|max:100',
+            'badge'       => 'nullable|string|max:50',
+            'type'        => 'nullable|string|max:50',
             'photo'       => 'nullable|image|max:4096',
         ]);
 
@@ -67,10 +76,13 @@ class SliderController extends Controller
             $slider->photo = $request->file('photo')->store('uploads/sliders', 'public');
         }
 
-        if ($request->filled('title'))       $slider->title       = $request->input('title');
-        if ($request->filled('link'))        $slider->link        = $request->input('link');
-        if ($request->has('button_text'))    $slider->button_text = $request->input('button_text');
-        if ($request->has('published'))      $slider->published   = (int) $request->input('published');
+        if ($request->has('title'))       $slider->title       = $request->input('title');
+        if ($request->has('description')) $slider->description = $request->input('description');
+        if ($request->has('link'))        $slider->link        = $request->input('link');
+        if ($request->has('button_text')) $slider->button_text = $request->input('button_text');
+        if ($request->has('badge'))       $slider->badge       = $request->input('badge');
+        if ($request->has('type'))        $slider->type        = $request->input('type');
+        if ($request->has('published'))   $slider->published   = (int) $request->input('published');
 
         $slider->save();
 
@@ -118,7 +130,10 @@ class SliderController extends Controller
         return [
             'id'          => $s->id,
             'title'       => $s->title,
+            'description' => $s->description,
             'button_text' => $s->button_text,
+            'badge'       => $s->badge,
+            'type'        => $s->type ?? 'main',
             'photo'       => $s->photo,
             'link'        => $s->link,
             'published'   => (int) $s->published,

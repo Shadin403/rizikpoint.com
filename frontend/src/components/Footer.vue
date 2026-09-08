@@ -9,7 +9,7 @@ const { get } = useBusinessSettings();
 
 function g(key) { return get(key, locale.value) || get(key) }
 
-const appName = computed(() => g("app_name") || "DealPabo");
+const appName = computed(() => g("app_name") || "RizikPoint");
 const footerLogo = computed(() => g("footer_logo"));
 const aboutUsDescription = computed(() => g("about_us_description") || "");
 const playStoreLink = computed(() => g("play_store_link"));
@@ -44,7 +44,7 @@ const widgetOneLinks = computed(() => {
 });
 
 const copyrightText = computed(
-  () => g("frontend_copyright_text") || `© ${new Date().getFullYear()} DealPabo. All Rights Reserved.`,
+  () => g("frontend_copyright_text") || `© ${new Date().getFullYear()} ${appName.value}. All Rights Reserved.`,
 );
 
 const showSocialLinks = computed(() => g("show_social_links") === "on");
@@ -71,8 +71,8 @@ const hasSocials = computed(() => {
 </script>
 
 <template>
-  <footer class="bg-[#0f172a] text-gray-400 pt-16 border-t border-gray-800">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+  <footer class="bg-secondary text-gray-300 pt-16 border-t border-border">
+    <div class="max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8 pb-8">
       <div class="grid grid-cols-1 md:grid-cols-12 gap-8 mb-12">
         <!-- Column 1: About & App Links -->
         <div class="md:col-span-5 flex flex-col gap-5">
@@ -85,7 +85,7 @@ const hasSocials = computed(() => {
               class="h-10 w-auto object-contain"
             />
             <span v-else class="text-xl font-bold text-white font-display">
-              Shadin<span class="text-primary"> Store</span>
+              {{ appName }}
             </span>
           </router-link>
 
@@ -96,8 +96,7 @@ const hasSocials = computed(() => {
             v-html="aboutUsDescription"
           ></div>
           <p v-else class="text-xs leading-relaxed">
-            ShadinStore offers the best daily deals, coupons, and offers in
-            Bangladesh. Grab your discounts now!
+            {{ locale === 'bn' ? 'অর্গানিক পণ্য ও প্রতিদিনের গ্রোসারি—আপনার রান্নাঘরের প্রয়োজন মেটাতে কেনাকাটা করুন নিজের মতো।' : 'Organic favourites and everyday groceries. Shop for your kitchen, your home, and your everyday routine.' }}
           </p>
 
           <!-- App Links -->

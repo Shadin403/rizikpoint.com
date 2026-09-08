@@ -336,4 +336,4 @@
     </script>
 <?php $__env->stopSection(); ?>
 
-<?php echo $__env->make('backend.layouts.app', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH D:\laragon\www\ecom3\backend\resources\views/backend/product/products/index.blade.php ENDPATH**/ ?>
+<?php echo $__env->make('backend.layouts.app', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH D:\laragon\www\rizikpoint\backend\resources\views/backend/product/products/index.blade.php ENDPATH**/ ?>

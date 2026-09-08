@@ -2,10 +2,10 @@
 
 const LOCALE_KEY = "dealpabo_locale";
 
-// Load initial language from localStorage or default to 'bn'
+// Load initial language from localStorage or default to 'en'
 const savedLocale = localStorage.getItem(LOCALE_KEY);
 const state = reactive({
-  locale: savedLocale === "en" ? "en" : "bn",
+  locale: savedLocale === "bn" ? "bn" : "en",
 });
 
 const dictionary = {
@@ -197,7 +197,7 @@ const currentLocale = computed(() => state.locale);
 
 function t(key) {
   const currentLang = state.locale;
-  return dictionary[currentLang][key] || dictionary["bn"][key] || key;
+  return dictionary[currentLang]?.[key] || dictionary["en"]?.[key] || dictionary["bn"]?.[key] || key;
 }
 
 function toggleLocale() {

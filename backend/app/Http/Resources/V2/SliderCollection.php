@@ -13,7 +13,10 @@ class SliderCollection extends ResourceCollection
                 return [
                     'id'          => $slider->id,
                     'title'       => $slider->title ?? '',
+                    'description' => $slider->description ?? '',
                     'button_text' => $slider->button_text ?? '',
+                    'badge'       => $slider->badge ?? '',
+                    'type'        => $slider->type ?? 'main',
                     'photo'       => $slider->photo ?? '',
                     'link'        => $slider->link ?? '/products-list',
                     'published'   => (int) $slider->published,

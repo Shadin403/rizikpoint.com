@@ -323,7 +323,9 @@ function mapBanner(b) {
     description:   b.description ?? '',
     descriptionBn: b.description_bn ?? b.description ?? '',
     link:          b.link ?? b.url ?? '/products-list',
-    buttonText:    b.button_text ?? b.buttonText ?? 'Order Now',
+    buttonText:    b.button_text ?? b.buttonText ?? '',
+    badge:         b.badge ?? '',
+    type:          b.type ?? 'main',
   };
 }
 
@@ -820,6 +822,27 @@ export async function fetchBanners() {
     return items.map(mapBanner).filter(b => b && b.image);
   } catch (err) {
     console.warn('Sliders API unavailable, returning empty.', err.message);
+    return [];
+  }
+}
+
+/**
+ * Fetch dynamic homepage product sections managed from the Admin Panel.
+ */
+export async function fetchHomeSections() {
+  try {
+    const data = await apiFetch('/home-sections');
+    const items = data.data ?? [];
+    return items.map(sec => ({
+      id: sec.id,
+      title: sec.title,
+      subtitle: sec.subtitle,
+      type: sec.type,
+      sortOrder: sec.sort_order,
+      products: (sec.products ?? []).map(mapProduct).filter(Boolean),
+    }));
+  } catch (err) {
+    console.warn('Home Sections API unavailable, returning empty.', err.message);
     return [];
   }
 }

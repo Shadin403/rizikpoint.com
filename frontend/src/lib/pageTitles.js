@@ -4,11 +4,11 @@
  */
 export const pageTitles = {
   Home: {
-    en: "Best Deals & Coupons",
-    bn: "সেরা ডিল ও কুপন",
+    en: "Organic & Everyday Groceries",
+    bn: "অর্গানিক ও প্রতিদিনের গ্রোসারি",
     description: {
-      en: "Discover the best deals, discounts, and coupon codes from your favorite Bangladeshi brands on DealPabo.",
-      bn: "DealPabo তে আপনার প্রিয় বাংলাদেশি ব্র্যান্ডগুলোর সেরা ডিল, ছাড় ও কুপন কোড খুঁজুন।",
+      en: "Explore organic favourites and everyday grocery essentials for your kitchen, all in one place.",
+      bn: "পছন্দের অর্গানিক পণ্য ও রান্নাঘরের প্রতিদিনের গ্রোসারি খুঁজুন এক জায়গায়।",
     },
   },
   ProductsList: {

@@ -227,7 +227,7 @@ function handleContactClick() {
   >
     <!-- Top Row: Logo, Search, Actions -->
     <div
-      class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between"
+      class="max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between"
     >
       <!-- Logo -->
       <router-link to="/" class="flex items-center gap-3">
@@ -238,6 +238,7 @@ function handleContactClick() {
           class="w-auto object-contain" style="height: 90px;"
           @error="logoError = true"
         />
+        <span v-else class="text-xl font-bold text-primary font-display">{{ appName || 'RizikPoint' }}</span>
         <!-- <div
           v-else
           class="w-10 h-10 bg-primary rounded-lg flex items-center justify-center font-bold text-white text-lg font-display"
@@ -450,7 +451,7 @@ function handleContactClick() {
     <!-- Bottom Row: Navigation Bar in Theme Primary Green -->
     <div class="bg-primary text-white relative">
       <div
-        class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-12 flex items-center justify-between"
+        class="max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8 h-12 flex items-center justify-between"
       >
         <!-- Nav Links -->
         <nav class="flex items-center gap-6 h-full">
@@ -655,12 +656,12 @@ function handleContactClick() {
     class="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm md:hidden"
   >
     <div
-      class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between"
+      class="max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between"
     >
       <!-- Left: Menu & Logo/Name -->
       <div class="flex items-center gap-3">
         <!-- Menu Toggle -->
-        <button @click="menuOpen = true" class="p-1 text-gray-600 cursor-pointer flex items-center">
+        <button @click="menuOpen = true" :aria-label="locale === 'bn' ? 'মেনু খুলুন' : 'Open menu'" class="min-w-11 min-h-11 text-gray-600 cursor-pointer flex items-center justify-center">
           <Menu class="w-6 h-6" />
         </button>
 
@@ -676,6 +677,7 @@ function handleContactClick() {
             class="h-9 w-auto object-contain"
             @error="logoError = true"
           />
+          <span v-else class="text-base font-bold text-primary">{{ appName || 'RizikPoint' }}</span>
          
         </router-link>
       </div>
@@ -715,7 +717,7 @@ function handleContactClick() {
     <transition name="slide-down">
       <div
         v-if="searchOpen"
-        class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-3 relative"
+        class="max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8 pb-3 relative"
         ref="searchContainerRef"
       >
         <form @submit.prevent="handleSearchSubmit" class="relative">
