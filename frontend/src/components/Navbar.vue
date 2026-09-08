@@ -53,7 +53,7 @@ function toggleSearch() {
   searchOpen.value = !searchOpen.value;
   if (searchOpen.value) {
     requestAnimationFrame(() => {
-      const input = window.innerWidth < 768 ? mobileSearchInputRef.value : searchInputRef.value;
+      const input = window.innerWidth < 901 ? mobileSearchInputRef.value : searchInputRef.value;
       input?.focus();
     });
   }
@@ -250,13 +250,13 @@ const vFocus = { mounted: (el) => el.focus() };
 .rp-drawer-links a:hover, .rp-drawer-links button:hover { color: #075d32; background: #edf7ee; }
 .rp-drawer-links svg { width: 17px; }
 @media (max-width: 1050px) { .rp-nav-row { grid-template-columns: 190px 1fr auto; } .rp-desktop-links { gap: 14px; } .rp-desktop-links a { font-size: 11px; } .rp-cart-total { display: none; } }
-@media (max-width: 767px) {
+@media (max-width: 900px) {
   .rp-topbar .rp-nav-container { min-height: 32px; justify-content: center; }
   .rp-topbar .rp-nav-container > strong { display: none; }
   .rp-topbar span { font-size: 10px; }
   .rp-topbar span i { display: none; }
   .rp-header { display: none; }
-  .rp-mobile-header { min-height: 62px; padding: 0 14px; position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #edf1ed; background: #fff; box-shadow: 0 1px 5px rgba(0,0,0,.04); }
+  .rp-mobile-header { width: 100%; min-width: 0; min-height: 62px; padding: 0 14px; position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #edf1ed; background: #fff; box-shadow: 0 1px 5px rgba(0,0,0,.04); box-sizing: border-box; }
   .rp-mobile-header > button, .rp-mobile-header > div > button { width: 38px; height: 38px; display: grid; place-items: center; border: 0; background: transparent; color: #26312b; cursor: pointer; }
   .rp-mobile-header > button svg, .rp-mobile-header > div > button svg { width: 20px; }
   .rp-mobile-header > div { display: flex; gap: 2px; }
