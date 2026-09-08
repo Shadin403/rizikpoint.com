@@ -3,7 +3,7 @@ import { ref, computed } from "vue";
 import { useCart } from "@/store/cart";
 import { useI18n } from "@/lib/i18n";
 import { useBusinessSettings } from "@/composables/useBusinessSettings";
-import { dummyProductImage } from "@/lib/dummyProductImages";
+import { dummyImagesEnabled, dummyProductImage } from "@/lib/dummyProductImages";
 import { Heart, ShoppingBag, Star, StarHalf, Plus, Minus } from "@lucide/vue";
 import { animateFlyToCart } from "@/lib/cart-fly";
 
@@ -22,10 +22,7 @@ const resolvedImage = computed(() => {
 });
 
 const { get: getBusinessSetting } = useBusinessSettings();
-const dummyImagesEnabled = computed(() => {
-  const value = getBusinessSetting('dummy_product_images');
-  return ['1', 'true', 'on', 'yes'].includes(String(value ?? '').toLowerCase());
-});
+const useDummyImages = computed(() => dummyImagesEnabled(getBusinessSetting));
 
 // --- Review / rating ---------------------------------------------------------
 const rawRating = computed(() => {
@@ -55,7 +52,7 @@ const wishlisted = ref(false);
 
 const displayImage = computed(() => {
   if (resolvedImage.value && !imageFailed.value) return resolvedImage.value;
-  return dummyImagesEnabled.value ? dummyProductImage(props.deal) : null;
+  return useDummyImages.value ? dummyProductImage(props.deal) : null;
 });
 
 // Find matching item in cart

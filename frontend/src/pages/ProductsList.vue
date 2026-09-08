@@ -5,7 +5,7 @@ import { SlidersHorizontal, ChevronDown, RotateCcw, Search, Loader2, LayoutGrid,
 import { fetchDealsPaged, fetchFilterCategories, fetchFilterBrands } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { useBusinessSettings } from "@/composables/useBusinessSettings";
-import { dummyProductImage } from "@/lib/dummyProductImages";
+import { dummyImagesEnabled, dummyProductImage } from "@/lib/dummyProductImages";
 import ProductCard from "@/components/shared/ProductCard.vue";
 import SkeletonLoader from "@/components/shared/SkeletonLoader.vue";
 import { usePageTitle } from "@/composables/usePageTitle";
@@ -15,13 +15,10 @@ const route  = useRoute();
 const router = useRouter();
 const { locale, t } = useI18n();
 const { get: getBusinessSetting } = useBusinessSettings();
-const dummyImagesEnabled = computed(() => {
-  const value = getBusinessSetting('dummy_product_images');
-  return ['1', 'true', 'on', 'yes'].includes(String(value ?? '').toLowerCase());
-});
+const useDummyImages = computed(() => dummyImagesEnabled(getBusinessSetting));
 
 function listImageFor(product) {
-  return product.imageUrl || (dummyImagesEnabled.value ? dummyProductImage(product) : null);
+  return product.imageUrl || (useDummyImages.value ? dummyProductImage(product) : null);
 }
 
 // ── Filter state ───────────────────────────────────────────────────────────────

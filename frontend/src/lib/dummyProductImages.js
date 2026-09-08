@@ -9,6 +9,16 @@ const DUMMY_IMAGES = {
   grocery: '/dummy-images/grocery.svg',
 };
 
+export function dummyImagesEnabled(getSetting) {
+  const value = getSetting('dummy_product_images');
+  // If production API settings are temporarily blocked by CORS, use the
+  // explicit production fallback. A real "0" from the API still wins.
+  if (value === null || value === undefined || value === '') {
+    return import.meta.env.VITE_DUMMY_PRODUCT_IMAGES_FALLBACK === '1';
+  }
+  return ['1', 'true', 'on', 'yes'].includes(String(value).toLowerCase());
+}
+
 function textFor(product) {
   return `${product?.title ?? ''} ${product?.categoryName ?? ''} ${product?.category ?? ''}`.toLowerCase();
 }
@@ -22,4 +32,3 @@ export function dummyProductImage(product) {
   if (/(vegetable|সবজি|potato|আলু|onion|পেঁয়াজ|tomato|টমেটো|carrot|গাজর|leaf|শাক)/i.test(text)) return DUMMY_IMAGES.vegetables;
   return DUMMY_IMAGES.grocery;
 }
-

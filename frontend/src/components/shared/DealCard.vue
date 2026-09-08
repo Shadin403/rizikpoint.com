@@ -3,7 +3,7 @@ import { ref, computed, onMounted, onUnmounted } from "vue";
 import { Clock, Eye, ArrowRight } from "@lucide/vue";
 import { useI18n } from "@/lib/i18n";
 import { useBusinessSettings } from "@/composables/useBusinessSettings";
-import { dummyProductImage } from "@/lib/dummyProductImages";
+import { dummyImagesEnabled, dummyProductImage } from "@/lib/dummyProductImages";
 
 const props = defineProps({
   deal: { type: Object, required: true },
@@ -13,13 +13,10 @@ const props = defineProps({
 const { locale, t } = useI18n();
 const { get: getBusinessSetting } = useBusinessSettings();
 const imageFailed = ref(false);
-const dummyImagesEnabled = computed(() => {
-  const value = getBusinessSetting('dummy_product_images');
-  return ['1', 'true', 'on', 'yes'].includes(String(value ?? '').toLowerCase());
-});
+const useDummyImages = computed(() => dummyImagesEnabled(getBusinessSetting));
 const displayImage = computed(() => {
   if (props.deal.imageUrl && !imageFailed.value) return props.deal.imageUrl;
-  return dummyImagesEnabled.value ? dummyProductImage(props.deal) : null;
+  return useDummyImages.value ? dummyProductImage(props.deal) : null;
 });
 
 const timeLeft = ref("");
