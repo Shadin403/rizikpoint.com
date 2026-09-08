@@ -22,8 +22,37 @@ const homeSections = ref([]);
 const loading = ref(true);
 const email = ref("");
 const subscribed = ref(false);
+const selectedPopularCategory = ref(null);
 
-const popularProducts = computed(() => (bestSellers.value.length ? bestSellers.value : allProducts.value).slice(0, 10));
+const popularSource = computed(() => (bestSellers.value.length ? bestSellers.value : allProducts.value));
+function categoryNameForProduct(product) {
+  if (product?.categoryName) return product.categoryName;
+  return categories.value.find((category) => String(category.id) === String(product?.categoryId))?.name || "";
+}
+function categoryKeyForProduct(product) {
+  return product?.categoryId != null
+    ? `id:${product.categoryId}`
+    : `name:${categoryNameForProduct(product).trim().toLowerCase()}`;
+}
+const popularCategoryTabs = computed(() => {
+  const seen = new Set();
+  const tabs = [];
+  popularSource.value.forEach((product) => {
+    const name = categoryNameForProduct(product).trim();
+    if (!name) return;
+    const key = categoryKeyForProduct(product);
+    if (seen.has(key)) return;
+    seen.add(key);
+    tabs.push({ key, name });
+  });
+  return tabs;
+});
+const popularProducts = computed(() => {
+  const products = selectedPopularCategory.value
+    ? popularSource.value.filter((product) => categoryKeyForProduct(product) === selectedPopularCategory.value)
+    : popularSource.value;
+  return products.slice(0, 10);
+});
 const specialProducts = computed(() => {
   const flashProducts = flashDealSections.value.flatMap((section) => section.products || []);
   const source = featuredProducts.value.length ? featuredProducts.value : flashProducts.length ? flashProducts : allProducts.value.slice(10);
@@ -36,6 +65,10 @@ function subscribe() {
   if (!email.value.trim()) return;
   subscribed.value = true;
   email.value = "";
+}
+
+function selectPopularCategory(key) {
+  selectedPopularCategory.value = selectedPopularCategory.value === key ? null : key;
 }
 
 onMounted(async () => {
@@ -137,7 +170,10 @@ onMounted(async () => {
 
     <section class="rp-section rp-container" aria-labelledby="popular-title">
       <div class="rp-section-heading rp-product-heading">
-        <div><h2 id="popular-title">{{ bn ? "জনপ্রিয় পণ্য" : "Popular Products" }}</h2><div class="rp-tabs" aria-label="Product categories"><span class="active">{{ bn ? "সব" : "All" }}</span><span>{{ bn ? "সবজি" : "Vegetables" }}</span><span>{{ bn ? "মাছ" : "Fish" }}</span><span>{{ bn ? "মাংস" : "Meat" }}</span><span>{{ bn ? "মসলা" : "Spices" }}</span></div></div>
+        <div><h2 id="popular-title">{{ bn ? "জনপ্রিয় পণ্য" : "Popular Products" }}</h2><div class="rp-tabs" aria-label="Popular product categories">
+          <button type="button" :class="{ active: selectedPopularCategory === null }" :aria-pressed="selectedPopularCategory === null" @click="selectedPopularCategory = null">{{ bn ? "সব" : "All" }}</button>
+          <button v-for="tab in popularCategoryTabs" :key="`popular-tab-${tab.key}`" type="button" :class="{ active: selectedPopularCategory === tab.key }" :aria-pressed="selectedPopularCategory === tab.key" @click="selectPopularCategory(tab.key)">{{ tab.name }}</button>
+        </div></div>
         <router-link to="/products-list" class="rp-view-link">{{ bn ? "সেরা বিক্রি" : "Best Selling Products" }} <ArrowRight aria-hidden="true" /></router-link>
       </div>
       <SkeletonLoader v-if="loading" type="card" :count="5" />
@@ -292,7 +328,9 @@ onMounted(async () => {
 .rp-category-skeleton { aspect-ratio: 1; border-radius: 50%; background: #edf0ed; animation: pulse 1.5s infinite; }
 .rp-product-heading { align-items: center; }
 .rp-tabs { display: flex; flex-wrap: wrap; gap: 26px; margin-top: 14px; color: #69716c; font-size: 12px; }
-.rp-tabs span { position: relative; padding-bottom: 8px; }
+.rp-tabs span, .rp-tabs button { position: relative; padding-bottom: 8px; }
+.rp-tabs button { border: 0; padding-inline: 0; color: inherit; background: transparent; font: inherit; cursor: pointer; }
+.rp-tabs button:hover { color: var(--rp-ink); }
 .rp-tabs .active { color: var(--rp-ink); font-weight: 700; }
 .rp-tabs .active::after { content: ""; position: absolute; left: 0; bottom: 0; width: 18px; height: 2px; background: var(--rp-green); }
 .rp-product-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 24px; }
