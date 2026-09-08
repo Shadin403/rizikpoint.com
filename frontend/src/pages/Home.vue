@@ -185,7 +185,7 @@ onMounted(async () => {
       <template v-if="miniBanners.length">
         <router-link v-for="banner in miniBanners" :key="`mini-banner-${banner.id}`" :to="banner.link || '/products-list'" class="rp-promo rp-promo-image">
           <img :src="banner.image" :alt="banner.title || 'Promotion'" />
-          <span class="rp-promo-overlay"></span>
+          <span v-if="banner.title || banner.description || banner.buttonText" class="rp-promo-overlay"></span>
           <div class="rp-promo-content">
             <p v-if="banner.badge">{{ banner.badge }}</p>
             <h2 v-if="banner.title">{{ banner.title }}</h2>
@@ -348,7 +348,7 @@ onMounted(async () => {
 .rp-promo-warm { background: linear-gradient(120deg, #fff0df, #ffe0c5); color: #8d2d17; }
 .rp-promo-image { color: #fff; background: #1f3326; }
 .rp-promo-image > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.rp-promo-overlay { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(5,31,17,.82), rgba(5,31,17,.25)); }
+.rp-promo-overlay { position: absolute; inset: 0; background: transparent; pointer-events: none; }
 .rp-promo-image .rp-promo-content { max-width: 76%; }
 .rp-promo-image h2 { font-size: clamp(24px, 2.5vw, 34px); line-height: 1.08; }
 .rp-promo-image p { color: #d9f3df; }
