@@ -2,7 +2,9 @@
 import { ref, computed } from "vue";
 import { useCart } from "@/store/cart";
 import { useI18n } from "@/lib/i18n";
-import { ShoppingBag, Star, StarHalf, Plus, Minus } from "@lucide/vue";
+import { useBusinessSettings } from "@/composables/useBusinessSettings";
+import { dummyProductImage } from "@/lib/dummyProductImages";
+import { Heart, ShoppingBag, Star, StarHalf, Plus, Minus } from "@lucide/vue";
 import { animateFlyToCart } from "@/lib/cart-fly";
 
 const props = defineProps({
@@ -17,6 +19,12 @@ const resolvedImage = computed(() => {
   const origin = import.meta.env.VITE_BACKEND_ORIGIN || 'http://127.0.0.1:8000';
   const clean  = url.startsWith('/') ? url.slice(1) : url;
   return `${origin}/${clean}`;
+});
+
+const { get: getBusinessSetting } = useBusinessSettings();
+const dummyImagesEnabled = computed(() => {
+  const value = getBusinessSetting('dummy_product_images');
+  return ['1', 'true', 'on', 'yes'].includes(String(value ?? '').toLowerCase());
 });
 
 // --- Review / rating ---------------------------------------------------------
@@ -43,6 +51,12 @@ const hasReviews = computed(() => hasRating.value && reviewCount.value > 0);
 const { items, addItem, updateQuantity, removeItem } = useCart();
 const { t } = useI18n();
 const imageFailed = ref(false);
+const wishlisted = ref(false);
+
+const displayImage = computed(() => {
+  if (resolvedImage.value && !imageFailed.value) return resolvedImage.value;
+  return dummyImagesEnabled.value ? dummyProductImage(props.deal) : null;
+});
 
 // Find matching item in cart
 const cartItem = computed(() => {
@@ -117,17 +131,17 @@ function handleDecrease() {
 </script>
 
 <template>
-  <div class="organic-product bg-white rounded-md border border-[#e5e7eb] hover:border-[#146c30] hover:shadow-xs transition-all duration-150 flex flex-col justify-between overflow-hidden p-2.5 group relative">
+  <article class="organic-product bg-white rounded-lg border border-[#edf1ed] shadow-[0_2px_10px_rgba(16,60,35,0.07)] hover:shadow-[0_10px_24px_rgba(16,60,35,0.14)] transition-shadow duration-200 flex flex-col justify-between group relative p-2.5">
     <!-- Top Content Area -->
     <div class="flex flex-col flex-1">
       <!-- Product Image Container -->
-      <router-link :to="`/products/${deal.slug || deal.id}`" class="block rounded-sm focus-visible:outline-2 focus-visible:outline-[#168039]">
-        <div class="organic-product-image relative aspect-square w-full overflow-hidden flex items-center justify-center p-1.5 mb-2 bg-white rounded-sm border border-stone-100">
+      <router-link :to="`/products/${deal.slug || deal.id}`" class="block rounded-lg focus-visible:outline-2 focus-visible:outline-[#075c32]">
+        <div class="organic-product-image relative aspect-square w-full overflow-hidden flex items-center justify-center p-2 mb-3 bg-[#f4f6f4] rounded-lg">
           <img
-            v-if="resolvedImage && !imageFailed"
-            :src="resolvedImage"
+            v-if="displayImage"
+            :src="displayImage"
             :alt="deal.title"
-            class="w-full h-full object-contain transition-transform duration-200 group-hover:scale-[1.02]"
+            class="w-full h-full object-contain transition-transform duration-200 group-hover:scale-[1.04]"
             @error="imageFailed = true"
             loading="lazy"
           />
@@ -136,8 +150,8 @@ function handleDecrease() {
           </div>
 
           <!-- Discount Badge -->
-          <div v-if="deal.discountPercent > 0" class="absolute top-1.5 right-1.5 z-10">
-            <div class="bg-[#168039] text-white font-semibold px-2 py-0.5 rounded-[4px] text-[11px] leading-tight shadow-xs select-none">
+          <div v-if="deal.discountPercent > 0" class="absolute top-2 left-2 z-10">
+            <div class="bg-[#ed6a25] text-white font-semibold px-2 py-1 rounded-[4px] text-[11px] leading-tight shadow-xs select-none">
               <template v-if="savings">
                 <span>-{{ savings }}৳</span>
               </template>
@@ -148,6 +162,16 @@ function handleDecrease() {
           </div>
         </div>
       </router-link>
+
+      <button
+        type="button"
+        :aria-label="wishlisted ? 'Remove from wishlist' : 'Add to wishlist'"
+        :aria-pressed="wishlisted"
+        class="absolute top-2 right-2 z-20 w-9 h-9 rounded-full bg-white/95 text-[#172019] flex items-center justify-center shadow-sm hover:text-[#075c32] cursor-pointer transition-colors"
+        @click.stop="wishlisted = !wishlisted"
+      >
+        <Heart class="w-4.5 h-4.5" :class="wishlisted ? 'fill-[#075c32] text-[#075c32]' : ''" />
+      </button>
 
       <!-- Title -->
       <router-link :to="`/products/${deal.slug || deal.id}`" class="block focus-visible:outline-2 focus-visible:outline-[#168039]">
@@ -188,7 +212,7 @@ function handleDecrease() {
       <!-- Quantity Controller Bar (When item is in cart) -->
       <div
         v-if="cartQty > 0"
-        class="w-full bg-[#168039] hover:bg-[#146c30] active:bg-[#146c30] text-white font-medium rounded-[4px] flex items-center justify-between h-9 px-1 shadow-2xs transition-colors select-none border border-[#146c30]"
+          class="w-full bg-[#075c32] hover:bg-[#064526] active:bg-[#064526] text-white font-medium rounded-[5px] flex items-center justify-between h-9 px-1 shadow-2xs transition-colors select-none border border-[#075c32]"
       >
         <button
           @click.stop="handleDecrease"
@@ -216,11 +240,11 @@ function handleDecrease() {
         v-else
         @click.stop="handleAddToCart"
         :aria-label="`${deal.title}: ${t('add_to_cart')}`"
-        class="w-full h-9 border border-[#168039] text-[#168039] hover:bg-[#168039] hover:text-white bg-white rounded-[4px] text-[13px] font-medium flex items-center justify-center gap-1.5 transition-all shadow-2xs active:bg-[#146c30] cursor-pointer focus-visible:outline-2 focus-visible:outline-[#146c30]"
+        class="w-fit min-w-[108px] h-9 px-4 border border-[#075c32] text-white hover:bg-[#064526] bg-[#075c32] rounded-[5px] text-[12px] font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-2xs cursor-pointer focus-visible:outline-2 focus-visible:outline-[#075c32] focus-visible:outline-offset-2"
       >
         <ShoppingBag class="w-4 h-4" />
         <span>{{ t('add_to_cart') }}</span>
       </button>
     </div>
-  </div>
+  </article>
 </template>

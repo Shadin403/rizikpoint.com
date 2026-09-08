@@ -1,655 +1,285 @@
 <script setup>
-import { ref, onMounted, onUnmounted, computed, watch } from "vue";
-import {
-  ArrowRight,
-  ChevronLeft,
-  ChevronRight,
-  Zap,
-  Star,
-  TrendingUp,
-  Package,
-  Truck,
-  ShieldCheck,
-  CreditCard,
-  Headphones,
-  Sparkles,
-  Award,
-  Loader2,
-  CheckCircle2,
-} from "@lucide/vue";
-import {
-  fetchBanners,
-  fetchFeaturedProducts,
-  fetchDeals,
-  fetchDealsPaged,
-  fetchFlashDeals,
-  fetchFlashDealSections,
-  fetchHomeSections,
-} from "@/lib/api";
+import { computed, onMounted, ref } from "vue";
+import { ArrowRight, Clock3, Headphones, Heart, Leaf, Mail, ShieldCheck, ShoppingBasket, Truck } from "@lucide/vue";
+import { fetchBanners, fetchBestSellers, fetchCategories, fetchDealsPaged, fetchFeaturedProducts, fetchFlashDealSections, fetchHomeSections } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import ProductCard from "@/components/shared/ProductCard.vue";
-import SkeletonLoader from "@/components/shared/SkeletonLoader.vue";
-import { defineAsyncComponent } from "vue";
-import "swiper/css";
-const Swiper = defineAsyncComponent(() => import("swiper/vue").then(m => m.Swiper));
-const SwiperSlide = defineAsyncComponent(() => import("swiper/vue").then(m => m.SwiperSlide));
 import { usePageTitle } from "@/composables/usePageTitle";
 import { pageTitles } from "@/lib/pageTitles";
+import ProductCard from "@/components/shared/ProductCard.vue";
+import CategoryIcon from "@/components/shared/CategoryIcon.vue";
+import SkeletonLoader from "@/components/shared/SkeletonLoader.vue";
+
 usePageTitle(pageTitles.Home);
-
-const { locale, t } = useI18n();
-
-const swiperBreakpoints = {
-  320: {
-    slidesPerView: 2,
-    spaceBetween: 12,
-  },
-  480: {
-    slidesPerView: 2.2,
-    spaceBetween: 14,
-  },
-  640: {
-    slidesPerView: 3,
-    spaceBetween: 16,
-  },
-  768: {
-    slidesPerView: 3.5,
-    spaceBetween: 16,
-  },
-  1024: {
-    slidesPerView: 4.2,
-    spaceBetween: 18,
-  },
-  1280: {
-    slidesPerView: 5,
-    spaceBetween: 20,
-  },
-};
-
-// ── Slider & Mini Banners ──────────────────────────────────────────────────────
+const { locale } = useI18n();
+const bn = computed(() => locale.value === "bn");
+const categories = ref([]);
 const banners = ref([]);
-const activeSlide = ref(0);
-let slideInterval = null;
-
-function hasBannerOverlay(b) {
-  if (!b) return false;
-  const title = locale.value === 'bn' ? (b.titleBn || b.title) : b.title;
-  const desc  = locale.value === 'bn' ? (b.descriptionBn || b.description) : b.description;
-  return !!(title?.trim() || desc?.trim() || b.buttonText?.trim() || b.badge?.trim());
-}
-
-const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1024);
-
-function handleResize() {
-  windowWidth.value = window.innerWidth;
-}
-
-const isMobile = computed(() => windowWidth.value < 1024);
-
-// Mini banners displayed on desktop right side (only from real database banners)
-const sideBanners = computed(() => {
-  const explicitSide = banners.value.filter(b => b.type === 'side' || b.type === 'mini');
-  if (explicitSide.length > 0) {
-    return explicitSide.slice(0, 2);
-  }
-  if (banners.value.length >= 3) {
-    return [banners.value[1], banners.value[2]];
-  }
-  return [];
-});
-
-const hasSideBanners = computed(() => !isMobile.value && sideBanners.value.length > 0);
-
-// Main slider banners for desktop
-const mainBanners = computed(() => {
-  const explicitMain = banners.value.filter(b => !b.type || b.type === 'main');
-  if (explicitMain.length > 0) {
-    if (sideBanners.value.length > 0 && explicitMain.length === banners.value.length && banners.value.length >= 3) {
-      return [banners.value[0], ...banners.value.slice(3)];
-    }
-    return explicitMain;
-  }
-  return banners.value;
-});
-
-// Mobile slider banners: merges main + side banners so mobile gets 1 continuous carousel
-const mobileBanners = computed(() => {
-  const combined = [...banners.value];
-  sideBanners.value.forEach(sb => {
-    if (!combined.some(b => b.id === sb.id)) {
-      combined.push(sb);
-    }
-  });
-  return combined;
-});
-
-// Active slider banner list
-const sliderBanners = computed(() => {
-  return isMobile.value
-    ? mobileBanners.value
-    : (mainBanners.value.length > 0 ? mainBanners.value : banners.value);
-});
-
-function nextSlide() {
-  if (sliderBanners.value.length < 2) return;
-  activeSlide.value = (activeSlide.value + 1) % sliderBanners.value.length;
-}
-function prevSlide() {
-  if (sliderBanners.value.length < 2) return;
-  activeSlide.value =
-    (activeSlide.value - 1 + sliderBanners.value.length) % sliderBanners.value.length;
-}
-function setSlide(i) {
-  activeSlide.value = i;
-}
-
-watch(sliderBanners, (newVal) => {
-  if (activeSlide.value >= newVal.length) {
-    activeSlide.value = 0;
-  }
-});
-
-// ── Product sections ───────────────────────────────────────────────────────────
+const bestSellers = ref([]);
 const featuredProducts = ref([]);
-const newArrivals = ref([]);
-// flashDealSections = one entry per active flash deal, each with its own products.
+const allProducts = ref([]);
 const flashDealSections = ref([]);
 const homeSections = ref([]);
+const loading = ref(true);
+const email = ref("");
+const subscribed = ref(false);
 
-// ── All Products Section (Paginated 30 items per batch) ──────────────────────
-const allProducts = ref([]);
-const currentPage = ref(1);
-const totalPages = ref(1);
-const perPage = 30;
+const popularProducts = computed(() => (bestSellers.value.length ? bestSellers.value : allProducts.value).slice(0, 10));
+const specialProducts = computed(() => {
+  const flashProducts = flashDealSections.value.flatMap((section) => section.products || []);
+  const source = featuredProducts.value.length ? featuredProducts.value : flashProducts.length ? flashProducts : allProducts.value.slice(10);
+  return source.slice(0, 10);
+});
+const visibleHomeSections = computed(() => homeSections.value.filter((section) => section.products?.length).slice(0, 2));
+const miniBanners = computed(() => banners.value.filter((banner) => banner.type === "mini" || banner.type === "side").slice(0, 2));
 
-const isLoadingBanners = ref(false);
-const isLoadingFeatured = ref(false);
-const isLoadingNew = ref(false);
-const isLoadingFlash = ref(false);
-const isLoadingHomeSections = ref(false);
-const isLoadingAll = ref(false);
-const isLoadingMore = ref(false);
-
-const hasMore = computed(() => currentPage.value < totalPages.value);
-
-async function loadInitialProducts() {
-  isLoadingAll.value = true;
-  try {
-    const res = await fetchDealsPaged({ page: 1, limit: perPage });
-    allProducts.value = res.deals || [];
-    if (res.meta) {
-      currentPage.value = res.meta.current_page || 1;
-      totalPages.value = res.meta.last_page || 1;
-    } else {
-      currentPage.value = 1;
-      totalPages.value = (res.deals && res.deals.length >= perPage) ? 2 : 1;
-    }
-  } catch (err) {
-    console.error("Error loading products", err);
-  } finally {
-    isLoadingAll.value = false;
-  }
-}
-
-async function loadMore() {
-  if (isLoadingMore.value || !hasMore.value) return;
-  isLoadingMore.value = true;
-  const nextPage = currentPage.value + 1;
-  try {
-    const res = await fetchDealsPaged({ page: nextPage, limit: perPage });
-    if (res.deals && res.deals.length > 0) {
-      const existingIds = new Set(allProducts.value.map((p) => p.id));
-      const newItems = res.deals.filter((p) => !existingIds.has(p.id));
-      allProducts.value.push(...newItems);
-    }
-    if (res.meta) {
-      currentPage.value = res.meta.current_page || nextPage;
-      totalPages.value = res.meta.last_page || currentPage.value;
-    } else {
-      currentPage.value = nextPage;
-      if (!res.deals || res.deals.length < perPage) {
-        totalPages.value = currentPage.value;
-      }
-    }
-  } catch (err) {
-    console.error("Error loading more products", err);
-  } finally {
-    isLoadingMore.value = false;
-  }
+function subscribe() {
+  if (!email.value.trim()) return;
+  subscribed.value = true;
+  email.value = "";
 }
 
 onMounted(async () => {
-  if (typeof window !== 'undefined') {
-    window.addEventListener('resize', handleResize);
-  }
-
-  // Load banners
-  isLoadingBanners.value = true;
-  fetchBanners()
-    .then((data) => {
-      banners.value = data;
-      isLoadingBanners.value = false;
-      if (slideInterval) clearInterval(slideInterval);
-      slideInterval = setInterval(nextSlide, 5000);
-    })
-    .catch(() => {
-      isLoadingBanners.value = false;
-    });
-
-  // Load featured products
-  isLoadingFeatured.value = true;
-  fetchFeaturedProducts()
-    .then((data) => {
-      featuredProducts.value = data.slice(0, 12);
-      isLoadingFeatured.value = false;
-    })
-    .catch(() => {
-      isLoadingFeatured.value = false;
-    });
-
-  // Load initial paginated products (30 per page)
-  loadInitialProducts();
-
-  // Load flash deals
-  isLoadingFlash.value = true;
-  fetchFlashDealSections()
-    .then((sections) => {
-      flashDealSections.value = sections;
-      isLoadingFlash.value = false;
-    })
-    .catch(() => {
-      isLoadingFlash.value = false;
-    });
-
-  // Load dynamic Home Sections from Admin Panel
-  isLoadingHomeSections.value = true;
-  fetchHomeSections()
-    .then((sections) => {
-      homeSections.value = sections;
-      isLoadingHomeSections.value = false;
-    })
-    .catch(() => {
-      isLoadingHomeSections.value = false;
-    });
+  const results = await Promise.allSettled([
+    fetchBanners(), fetchCategories(), fetchBestSellers(), fetchFeaturedProducts(), fetchDealsPaged({ page: 1, limit: 30 }), fetchFlashDealSections(), fetchHomeSections(),
+  ]);
+  if (results[0].status === "fulfilled") banners.value = results[0].value;
+  if (results[1].status === "fulfilled") categories.value = results[1].value;
+  if (results[2].status === "fulfilled") bestSellers.value = results[2].value;
+  if (results[3].status === "fulfilled") featuredProducts.value = results[3].value;
+  if (results[4].status === "fulfilled") allProducts.value = results[4].value.deals || [];
+  if (results[5].status === "fulfilled") flashDealSections.value = results[5].value;
+  if (results[6].status === "fulfilled") homeSections.value = results[6].value;
+  loading.value = false;
 });
-
-onUnmounted(() => {
-  if (typeof window !== 'undefined') {
-    window.removeEventListener('resize', handleResize);
-  }
-  if (slideInterval) clearInterval(slideInterval);
-});
-
-const recommended = computed(() =>
-  featuredProducts.value.length > 0
-    ? featuredProducts.value.slice(0, 6)
-    : newArrivals.value.slice(0, 6),
-);
-
-// Limit each flash-deal section to 12 products so the grid stays tidy when
-// a deal has a long product list.
-const MAX_PER_SECTION = 12;
 </script>
 
 <template>
-  <div class="organic-home w-full pb-12 flex flex-col gap-10 bg-stone-50/40">
-    <!-- ── Section 1: Hero Banner Skeleton Loading State ────────────────── -->
-    <div v-if="isLoadingBanners" class="px-3 sm:px-6 mt-3">
-      <div class="grid grid-cols-12 gap-3 sm:gap-5">
-        <div
-          class="col-span-12 lg:col-span-8 rounded-2xl bg-gradient-to-r from-stone-200 via-stone-100 to-stone-200 h-[260px] sm:h-[340px] lg:h-[400px] animate-pulse"
-        ></div>
-        <div class="hidden lg:flex lg:col-span-4 flex-col gap-4 h-[400px]">
-          <div class="rounded-2xl bg-gradient-to-r from-stone-200 via-stone-100 to-stone-200 flex-1 animate-pulse"></div>
-          <div class="rounded-2xl bg-gradient-to-r from-stone-200 via-stone-100 to-stone-200 flex-1 animate-pulse"></div>
+  <main class="rp-home">
+    <section class="rp-hero" aria-labelledby="home-hero-title">
+      <img src="/rizikpoint-grocery-hero.png" alt="Fresh ready-to-cook vegetables and fish arranged on a wooden board" class="rp-hero-image" />
+      <div class="rp-hero-shade"></div>
+      <div class="rp-container rp-hero-content">
+        <p class="rp-eyebrow"><Leaf aria-hidden="true" /> {{ bn ? "টাটকা ও স্বাস্থ্যকর" : "Fresh & Healthy" }}</p>
+        <h1 id="home-hero-title">{{ bn ? "ব্যস্ত জীবনে রান্না" : "Ready to Cook" }}<br />{{ bn ? "এখন আরও সহজ" : "For Your Busy Life" }}</h1>
+        <p class="rp-hero-copy">{{ bn ? "ধোয়া, কাটা ও পরিচ্ছন্নভাবে প্যাক করা সবজি, মাছ, মাংস ও মসলা—কম সময়ে স্বাস্থ্যকর রান্নার জন্য।" : "Pre-washed, cut and hygienically packed vegetables, fish, meat and spices — so you can cook faster and healthier every day." }}</p>
+        <div class="rp-hero-actions">
+          <router-link to="/products-list" class="rp-btn rp-btn-primary">{{ bn ? "এখনই কিনুন" : "Shop Now" }} <ArrowRight aria-hidden="true" /></router-link>
+          <router-link to="/categories" class="rp-btn rp-btn-secondary">{{ bn ? "আরও দেখুন" : "Explore More" }}</router-link>
         </div>
-      </div>
-    </div>
-
-    <!-- ── Section 1: Classic Hero Banner Area ────────────────────────── -->
-    <div v-else-if="sliderBanners.length > 0" class="px-3 sm:px-6 mt-3">
-      <div class="grid grid-cols-12 gap-3 sm:gap-5">
-        <!-- Main Banner Slider -->
-        <div
-          :class="hasSideBanners ? 'col-span-12 lg:col-span-8' : 'col-span-12'"
-          class="relative rounded-2xl overflow-hidden h-[260px] sm:h-[340px] lg:h-[400px] shadow-md border border-stone-200/90 group bg-stone-900"
-        >
-          <router-link
-            v-for="(banner, index) in sliderBanners"
-            :key="banner.id"
-            v-show="activeSlide === index"
-            :to="banner.link || '/products-list'"
-            class="absolute inset-0 transition-opacity duration-1000 block"
-          >
-            <img
-              :src="banner.image"
-              :alt="locale === 'bn' ? banner.titleBn || banner.title : banner.title"
-              class="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-700 opacity-95"
-              loading="lazy"
-            />
-            <div
-              v-if="hasBannerOverlay(banner)"
-              class="absolute inset-0 bg-gradient-to-t from-stone-950/95 via-stone-900/40 to-transparent flex flex-col justify-end p-6 sm:p-10 pointer-events-none"
-            >
-              <div v-if="banner.badge" class="mb-2">
-                <span class="bg-amber-500 text-stone-950 text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-widest shadow-xs border border-amber-300">
-                  {{ banner.badge }}
-                </span>
-              </div>
-              <h2
-                v-if="locale === 'bn' ? (banner.titleBn || banner.title) : banner.title"
-                class="text-white text-2xl sm:text-4xl lg:text-5xl font-bold mb-2 font-display leading-tight tracking-tight drop-shadow-md"
-              >
-                {{ locale === "bn" ? banner.titleBn || banner.title : banner.title }}
-              </h2>
-              <p
-                v-if="locale === 'bn' ? (banner.descriptionBn || banner.description) : banner.description"
-                class="text-stone-200 text-xs sm:text-sm md:text-base max-w-xl mb-5 font-sans leading-relaxed line-clamp-2"
-              >
-                {{ locale === "bn" ? banner.descriptionBn || banner.description : banner.description }}
-              </p>
-              <span
-                v-if="banner.buttonText"
-                class="inline-flex items-center gap-2 bg-emerald-800 hover:bg-emerald-900 text-amber-50 font-semibold px-6 py-2.5 rounded-full text-sm w-fit transition-all shadow-md border border-emerald-600/40 pointer-events-auto hover:translate-x-1"
-              >
-                {{ banner.buttonText }} <ArrowRight class="w-4 h-4" />
-              </span>
-            </div>
-          </router-link>
-
-          <!-- Nav arrows -->
-          <button
-            v-if="sliderBanners.length > 1"
-            :aria-label="locale === 'bn' ? 'আগের ব্যানার' : 'Previous banner'"
-            @click="prevSlide"
-            class="absolute left-3.5 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-stone-950/60 hover:bg-stone-950/85 text-amber-100 border border-amber-500/30 backdrop-blur-xs flex items-center justify-center cursor-pointer transition-colors z-10 shadow-md"
-          >
-            <ChevronLeft class="w-5 h-5" />
-          </button>
-          <button
-            v-if="sliderBanners.length > 1"
-            :aria-label="locale === 'bn' ? 'পরের ব্যানার' : 'Next banner'"
-            @click="nextSlide"
-            class="absolute right-3.5 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-stone-950/60 hover:bg-stone-950/85 text-amber-100 border border-amber-500/30 backdrop-blur-xs flex items-center justify-center cursor-pointer transition-colors z-10 shadow-md"
-          >
-            <ChevronRight class="w-5 h-5" />
-          </button>
-
-          <!-- Dots -->
-          <div
-            v-if="sliderBanners.length > 1"
-            class="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10"
-          >
-            <button
-              v-for="(banner, index) in sliderBanners"
-              :key="banner.id"
-              @click="setSlide(index)"
-              :aria-label="`${locale === 'bn' ? 'ব্যানার' : 'Banner'} ${index + 1}`"
-              :aria-pressed="activeSlide === index"
-              class="h-2 rounded-full transition-all duration-300 cursor-pointer"
-              :class="
-                activeSlide === index
-                  ? 'bg-amber-400 w-7'
-                  : 'bg-white/50 w-2 hover:bg-white'
-              "
-            />
-          </div>
-        </div>
-
-        <!-- 2 Stacked Side Banners -->
-        <div v-if="hasSideBanners" class="hidden lg:flex lg:col-span-4 flex-col gap-4 h-[400px]">
-          <router-link
-            v-for="mini in sideBanners"
-            :key="mini.id"
-            :to="mini.link || '/products-list'"
-            class="relative rounded-2xl overflow-hidden flex-1 group border border-stone-200/90 shadow-sm hover:shadow-md transition-all duration-300 block bg-stone-900"
-          >
-            <img
-              :src="mini.image"
-              :alt="locale === 'bn' ? mini.titleBn || mini.title : mini.title"
-              class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 opacity-95"
-              loading="lazy"
-            />
-            <div
-              v-if="hasBannerOverlay(mini)"
-              class="absolute inset-0 bg-gradient-to-t from-stone-950/90 via-stone-900/30 to-transparent flex flex-col justify-end p-5 pointer-events-none"
-            >
-              <div v-if="mini.badge" class="mb-1">
-                <span class="bg-amber-500 text-stone-950 text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-xs border border-amber-300">
-                  {{ mini.badge }}
-                </span>
-              </div>
-              <h3
-                v-if="locale === 'bn' ? (mini.titleBn || mini.title) : mini.title"
-                class="text-white text-base sm:text-lg font-bold font-display leading-snug line-clamp-1 group-hover:text-amber-200 transition-colors drop-shadow-sm"
-              >
-                {{ locale === "bn" ? mini.titleBn || mini.title : mini.title }}
-              </h3>
-              <p
-                v-if="locale === 'bn' ? (mini.descriptionBn || mini.description) : mini.description"
-                class="text-stone-200 text-xs line-clamp-1 mb-2 font-sans opacity-90"
-              >
-                {{ locale === "bn" ? mini.descriptionBn || mini.description : mini.description }}
-              </p>
-              <span
-                v-if="mini.buttonText"
-                class="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-300 group-hover:text-amber-200 transition-all group-hover:translate-x-1 duration-200"
-              >
-                <span>{{ mini.buttonText }}</span>
-                <ArrowRight class="w-3.5 h-3.5" />
-              </span>
-            </div>
-          </router-link>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── Section 2: Flash Deals ─────────────────────────────────────────── -->
-    <section v-if="isLoadingFlash || flashDealSections.length > 0" class="px-3 sm:px-4">
-      <SkeletonLoader v-if="isLoadingFlash" type="card" :count="6" />
-      <div v-else class="flex flex-col gap-6">
-        <div
-          v-for="section in flashDealSections"
-          :key="'flash-section-' + section.id"
-        >
-          <!-- Section header: title from the deal itself -->
-          <div class="flex items-center justify-between mb-3 border-b border-gray-200/80 pb-2">
-            <div class="flex items-center gap-2">
-              <div
-                class="w-7 h-7 bg-red-600 rounded-lg flex items-center justify-center shadow-xs text-white"
-              >
-                <Zap class="w-4 h-4 fill-white" />
-              </div>
-              <div>
-                <h2 class="text-base sm:text-lg font-bold text-gray-900 leading-tight">
-                  {{
-                    section.title ||
-                    (locale === "bn" ? "ফ্ল্যাশ ডিল" : "Flash Deals")
-                  }}
-                </h2>
-                <p class="text-[11px] text-gray-500 font-sans mt-0.5">
-                  {{
-                    locale === "bn"
-                      ? "সীমিত সময়ের আকর্ষণীয় অফারসমূহ"
-                      : "Handpicked limited-time exclusive offers"
-                  }}
-                </p>
-              </div>
-            </div>
-            <router-link
-              v-if="section.id > 0"
-              :to="`/deals`"
-              class="inline-flex items-center gap-1 text-xs font-semibold text-[#168039] hover:text-[#146c30]"
-            >
-              {{ t("see_all") }} <ArrowRight class="w-3.5 h-3.5" />
-            </router-link>
-          </div>
-
-          <!-- Banner image (if the deal has one) -->
-          <a
-            v-if="section.banner"
-            :href="section.id > 0 ? `/deals` : '/products-list'"
-            class="block mb-3 rounded-lg overflow-hidden shadow-xs border border-gray-200"
-          >
-            <img
-              :src="section.banner"
-              :alt="section.title"
-              class="w-full h-32 sm:h-40 object-cover"
-            />
-          </a>
-
-          <!-- Products Swiper for this specific deal -->
-          <swiper
-            v-if="section.products.length > 0"
-            :breakpoints="swiperBreakpoints"
-            class="w-full !pb-1"
-          >
-            <swiper-slide
-              v-for="deal in section.products.slice(0, MAX_PER_SECTION)"
-              :key="'flash-' + section.id + '-' + deal.id"
-            >
-              <ProductCard :deal="deal" />
-            </swiper-slide>
-          </swiper>
+        <div class="rp-customer-note">
+          <span class="rp-avatar-stack" aria-hidden="true"><span>R</span><span>P</span><span>✓</span><span>+</span></span>
+          <strong>{{ bn ? "২০ হাজার+ সন্তুষ্ট গ্রাহক" : "20K+ Happy Customers" }}</strong>
         </div>
       </div>
     </section>
 
-    <!-- ── Dynamic Homepage Sections (Managed from Admin Panel) ────────── -->
-    <template v-if="isLoadingHomeSections">
-      <section v-for="i in 2" :key="'sec-skel-' + i" class="px-3 sm:px-4">
-        <div class="mb-3 space-y-1">
-          <div class="h-5 w-48 bg-stone-200 rounded animate-pulse" />
-          <div class="h-3 w-64 bg-stone-200 rounded animate-pulse" />
-        </div>
-        <SkeletonLoader type="card" :count="6" />
-      </section>
-    </template>
+    <div class="rp-container rp-services" aria-label="Store benefits">
+      <div class="rp-service"><span class="rp-service-icon"><Truck aria-hidden="true" /></span><span><strong>{{ bn ? "ফ্রি হোম ডেলিভারি" : "Free Home Delivery" }}</strong><small>{{ bn ? "৳১০০০-এর বেশি অর্ডারে" : "On orders over ৳1000" }}</small></span></div>
+      <div class="rp-service"><span class="rp-service-icon"><ShieldCheck aria-hidden="true" /></span><span><strong>{{ bn ? "টাটকা ও স্বাস্থ্যসম্মত" : "Fresh & Hygienic" }}</strong><small>{{ bn ? "পরিষ্কার ও রান্নার জন্য প্রস্তুত" : "Cleaned and ready to cook" }}</small></span></div>
+      <div class="rp-service"><span class="rp-service-icon"><Headphones aria-hidden="true" /></span><span><strong>{{ bn ? "গ্রাহক সহায়তা" : "Customer Support" }}</strong><small>{{ bn ? "সপ্তাহে ৭ দিন সাপোর্ট" : "Dedicated support, 7 days" }}</small></span></div>
+    </div>
 
-    <template v-else-if="homeSections.length > 0">
-      <section
-        v-for="sec in homeSections"
-        :key="'home-sec-' + sec.id"
-        class="px-3 sm:px-4"
-      >
-        <div>
-          <div class="flex items-center justify-between mb-3 border-b border-gray-200/80 pb-2">
-            <div class="flex items-center gap-2">
-              <div class="w-1.5 h-5 bg-[#168039] rounded-full" />
-              <div>
-                <h2 class="text-base sm:text-lg font-bold text-gray-900 leading-tight">
-                  {{ sec.title }}
-                </h2>
-                <p v-if="sec.subtitle" class="text-[11px] text-gray-500 font-sans mt-0.5">
-                  {{ sec.subtitle }}
-                </p>
-              </div>
-            </div>
-            <router-link
-              :to="sec.category_id ? `/products-list?category=${sec.category_id}` : '/products-list'"
-              class="inline-flex items-center gap-1 text-xs font-semibold text-[#168039] hover:text-[#146c30]"
-            >
-              {{ t("see_all") }} <ArrowRight class="w-3.5 h-3.5" />
-            </router-link>
+    <section class="rp-section rp-container" aria-labelledby="category-title">
+      <div class="rp-section-heading">
+        <div><h2 id="category-title">{{ bn ? "ক্যাটাগরি অনুযায়ী কিনুন" : "Shop By Category" }}</h2><p>{{ bn ? "আপনার রান্নাঘরের প্রয়োজনীয় সবকিছু এক জায়গায়।" : "Everything you need for your kitchen, ready for you." }}</p></div>
+        <router-link to="/categories" class="rp-view-link">{{ bn ? "সব ক্যাটাগরি" : "View All Categories" }} <ArrowRight aria-hidden="true" /></router-link>
+      </div>
+      <div v-if="categories.length" class="rp-category-grid">
+        <router-link v-for="category in categories.slice(0, 8)" :key="category.id" :to="{ path: '/products-list', query: { category: category.id } }" class="rp-category">
+          <span class="rp-category-image"><img v-if="category.imageUrl" :src="category.imageUrl" :alt="category.name" /><CategoryIcon v-else :name="category.name" :icon="category.icon" class-name="w-10 h-10" /></span>
+          <span>{{ category.name }}</span>
+        </router-link>
+      </div>
+      <div v-else class="rp-category-grid" aria-hidden="true"><div v-for="i in 8" :key="i" class="rp-category-skeleton"></div></div>
+    </section>
+
+    <section class="rp-section rp-container" aria-labelledby="popular-title">
+      <div class="rp-section-heading rp-product-heading">
+        <div><h2 id="popular-title">{{ bn ? "জনপ্রিয় পণ্য" : "Popular Products" }}</h2><div class="rp-tabs" aria-label="Product categories"><span class="active">{{ bn ? "সব" : "All" }}</span><span>{{ bn ? "সবজি" : "Vegetables" }}</span><span>{{ bn ? "মাছ" : "Fish" }}</span><span>{{ bn ? "মাংস" : "Meat" }}</span><span>{{ bn ? "মসলা" : "Spices" }}</span></div></div>
+        <router-link to="/products-list" class="rp-view-link">{{ bn ? "সেরা বিক্রি" : "Best Selling Products" }} <ArrowRight aria-hidden="true" /></router-link>
+      </div>
+      <SkeletonLoader v-if="loading" type="card" :count="5" />
+      <div v-else-if="popularProducts.length" class="rp-product-grid"><ProductCard v-for="product in popularProducts" :key="`popular-${product.id}`" :deal="product" /></div>
+      <div v-else class="rp-empty">{{ bn ? "কোনো পণ্য পাওয়া যায়নি।" : "No products available yet." }}</div>
+    </section>
+
+    <section class="rp-container rp-promos" aria-label="Promotions">
+      <template v-if="miniBanners.length">
+        <router-link v-for="banner in miniBanners" :key="`mini-banner-${banner.id}`" :to="banner.link || '/products-list'" class="rp-promo rp-promo-image">
+          <img :src="banner.image" :alt="banner.title || 'Promotion'" />
+          <span class="rp-promo-overlay"></span>
+          <div class="rp-promo-content">
+            <p v-if="banner.badge">{{ banner.badge }}</p>
+            <h2 v-if="banner.title">{{ banner.title }}</h2>
+            <span v-if="banner.description">{{ banner.description }}</span>
+            <strong v-if="banner.buttonText">{{ banner.buttonText }} <ArrowRight aria-hidden="true" /></strong>
           </div>
+        </router-link>
+      </template>
+      <router-link v-if="!miniBanners[0]" to="/products-list" class="rp-promo rp-promo-green">
+        <div><p>{{ bn ? "সময় বাঁচান" : "Save Time" }}</p><h2>{{ bn ? "রান্না করুন আরও সহজে" : "Cook Smarter" }}</h2><span>{{ bn ? "পরিষ্কার, কাটা ও স্বাস্থ্যসম্মতভাবে প্যাক করা" : "Freshly cut, hygienically packed" }}</span><strong>{{ bn ? "এখনই কিনুন" : "Shop Now" }} <ArrowRight aria-hidden="true" /></strong></div><ShoppingBasket aria-hidden="true" />
+      </router-link>
+      <router-link v-if="!miniBanners[1]" to="/deals" class="rp-promo rp-promo-warm">
+        <div><p>{{ bn ? "বিশেষ অফার" : "Special Offer" }}</p><h2>{{ bn ? "নতুন গ্রাহকদের জন্য" : "For New Customers" }}</h2><span>{{ bn ? "প্রথম অর্ডারে আকর্ষণীয় ছাড় পান" : "Get a special discount on your first order" }}</span><strong>{{ bn ? "অফার দেখুন" : "View Offer" }} <ArrowRight aria-hidden="true" /></strong></div><Leaf aria-hidden="true" />
+      </router-link>
+    </section>
 
-          <swiper
-            v-if="sec.products.length > 0"
-            :breakpoints="swiperBreakpoints"
-            class="w-full !pb-1"
-          >
-            <swiper-slide v-for="deal in sec.products" :key="'sec-' + sec.id + '-' + deal.id">
-              <ProductCard :deal="deal" />
-            </swiper-slide>
-          </swiper>
+    <section class="rp-section rp-container" aria-labelledby="special-title">
+      <div class="rp-section-heading rp-product-heading">
+        <div><h2 id="special-title">{{ bn ? "বিশেষ পণ্য" : "Special Products" }}</h2><div class="rp-tabs" aria-label="Special product groups"><span class="active">{{ bn ? "নির্বাচিত" : "Featured" }}</span><span>{{ bn ? "নতুন" : "New Arrivals" }}</span><span>{{ bn ? "সেরা রেটিং" : "Top Rated" }}</span></div></div>
+        <router-link to="/products-list" class="rp-view-link">{{ bn ? "সব পণ্য" : "View All Products" }} <ArrowRight aria-hidden="true" /></router-link>
+      </div>
+      <SkeletonLoader v-if="loading" type="card" :count="5" />
+      <div v-else-if="specialProducts.length" class="rp-product-grid"><ProductCard v-for="product in specialProducts" :key="`special-${product.id}`" :deal="product" /></div>
+      <div v-else class="rp-empty">{{ bn ? "কোনো বিশেষ পণ্য পাওয়া যায়নি।" : "No special products available yet." }}</div>
+    </section>
 
-          <p v-else class="text-center text-gray-400 py-4 text-xs">
-            {{ locale === 'bn' ? 'এই সেকশনে আপাতত কোনো পণ্য নেই।' : 'No products available in this section.' }}
-          </p>
-        </div>
-      </section>
-    </template>
+    <section v-for="section in visibleHomeSections" :key="section.id" class="rp-section rp-container" :aria-labelledby="`home-section-${section.id}`">
+      <div class="rp-section-heading"><div><h2 :id="`home-section-${section.id}`">{{ section.title }}</h2><p v-if="section.subtitle">{{ section.subtitle }}</p></div><router-link to="/products-list" class="rp-view-link">{{ bn ? "সব দেখুন" : "View All" }} <ArrowRight aria-hidden="true" /></router-link></div>
+      <div class="rp-product-grid"><ProductCard v-for="product in section.products.slice(0, 10)" :key="`${section.id}-${product.id}`" :deal="product" /></div>
+    </section>
 
-    <!-- ── Final Section: All Products ────────────────────────────────────────── -->
-    <section class="px-3 sm:px-4">
-      <div>
-        <div class="flex items-center justify-between mb-4 border-b border-gray-200/80 pb-2">
-          <div class="flex items-center gap-2">
-            <div class="w-1.5 h-5 bg-[#168039] rounded-full" />
-            <div>
-              <h2
-                class="text-base sm:text-lg font-bold text-gray-900 leading-tight"
-              >
-                {{ locale === 'bn' ? 'আপনার বাজার জন্য বাছাই' : 'Curated Everyday Collection' }}
-              </h2>
-              <p class="text-[11px] text-gray-500 font-sans mt-0.5">
-                {{ locale === 'bn' ? 'পছন্দের পণ্য দিয়ে পূর্ণ হোক বাজারের ঝুড়ি' : 'Explore all high quality products carefully selected for you' }}
-              </p>
-            </div>
-          </div>
-        </div>
+    <div class="rp-container rp-values" aria-label="Why choose us">
+      <div><span><Leaf aria-hidden="true" /></span><p><strong>{{ bn ? "১০০% টাটকা" : "100% Fresh" }}</strong><small>{{ bn ? "বিশ্বাসযোগ্য মান" : "Quality you can trust" }}</small></p></div>
+      <div><span><Clock3 aria-hidden="true" /></span><p><strong>{{ bn ? "সময় বাঁচায়" : "Saves Time" }}</strong><small>{{ bn ? "জরুরি কাজের জন্য সময়" : "More time for what matters" }}</small></p></div>
+      <div><span><Heart aria-hidden="true" /></span><p><strong>{{ bn ? "স্বাস্থ্যকর পছন্দ" : "Healthy Choice" }}</strong><small>{{ bn ? "টাটকা ও পুষ্টিকর" : "Fresh and nutritious" }}</small></p></div>
+      <div><span><ShieldCheck aria-hidden="true" /></span><p><strong>{{ bn ? "হালাল ও নিরাপদ" : "Halal & Safe" }}</strong><small>{{ bn ? "যত্ন নিয়ে প্রস্তুত" : "Prepared with care" }}</small></p></div>
+    </div>
 
-        <SkeletonLoader
-          v-if="isLoadingAll && allProducts.length === 0"
-          type="card"
-          :count="12"
-        />
-
-        <div
-          v-else-if="allProducts.length > 0"
-          class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 transition-all duration-300"
-        >
-          <ProductCard
-            v-for="deal in allProducts"
-            :key="'all-' + deal.id"
-            :deal="deal"
-          />
-        </div>
-
-        <!-- Load More Button with beautiful gradient styling -->
-        <div v-if="hasMore" class="flex justify-center mt-9 mb-2">
-          <button
-            @click="loadMore"
-            :disabled="isLoadingMore"
-            class="bg-gradient-to-r from-[#168039] via-[#157734] to-[#146c30] hover:from-[#146c30] hover:to-[#125e29] text-white font-bold px-9 py-3.5 rounded-full shadow-md hover:shadow-lg hover:shadow-[#168039]/30 hover:-translate-y-0.5 transition-all duration-200 text-xs sm:text-sm cursor-pointer flex items-center gap-2.5 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed group border border-[#146c30]"
-          >
-            <Loader2 v-if="isLoadingMore" class="w-4 h-4 animate-spin text-white" />
-            <ArrowRight v-else class="w-4 h-4 group-hover:translate-x-1 transition-transform stroke-[2.5]" />
-            <span>
-              {{ isLoadingMore
-                ? (locale === 'bn' ? 'পণ্য লোড হচ্ছে...' : 'Loading products...')
-                : t("load_more")
-              }}
-            </span>
-          </button>
-        </div>
-
-        <!-- End of Products Message -->
-        <div v-else-if="allProducts.length > 0 && !hasMore" class="text-center py-8">
-          <div class="inline-flex items-center gap-2 text-xs font-semibold text-gray-500 bg-gray-100/80 px-4 py-2 rounded-full border border-gray-200/80">
-            <CheckCircle2 class="w-4 h-4 text-[#168039]" />
-            <span>{{ locale === 'bn' ? 'সকল পণ্য লোড করা হয়েছে' : 'All products have been loaded' }}</span>
-          </div>
-        </div>
-
-        <p
-          v-else-if="allProducts.length === 0 && !isLoadingAll"
-          class="text-center text-gray-400 py-6 text-xs"
-        >
-          {{ locale === 'bn' ? 'এই মুহূর্তে পণ্য দেখানো যাচ্ছে না। কিছুক্ষণ পরে আবার দেখুন।' : 'Products are unavailable right now. Please check back shortly.' }}
-        </p>
+    <section class="rp-newsletter" aria-labelledby="newsletter-title">
+      <div class="rp-container rp-newsletter-inner">
+        <div><h2 id="newsletter-title">{{ subscribed ? (bn ? "ধন্যবাদ!" : "Thank you!") : (bn ? "আপডেট ও বিশেষ অফার পান" : "Get Updates & Special Offers") }}</h2><p>{{ subscribed ? (bn ? "পরবর্তী অফারগুলো আমরা আপনার কাছে পৌঁছে দেব।" : "We will keep you posted about our next offers.") : (bn ? "নতুন পণ্য ও ছাড়ের খবর সবার আগে জানুন।" : "Be the first to know about new products and discounts.") }}</p></div>
+        <form v-if="!subscribed" class="rp-subscribe" @submit.prevent="subscribe"><Mail aria-hidden="true" /><label for="newsletter-email" class="sr-only">Email address</label><input id="newsletter-email" v-model="email" type="email" required :placeholder="bn ? 'আপনার ইমেইল ঠিকানা' : 'Your email address'" /><button type="submit">{{ bn ? "সাবস্ক্রাইব" : "Subscribe" }}</button></form>
       </div>
     </section>
-  </div>
+  </main>
 </template>
 
 <style scoped>
-.scrollbar-none::-webkit-scrollbar {
-  display: none;
+.rp-home { --rp-green: #075c32; --rp-green-dark: #064526; --rp-orange: #ed6a25; --rp-ink: #101512; --rp-muted: #667069; background: #fff; color: var(--rp-ink); }
+.rp-container { width: min(1180px, calc(100% - 40px)); margin-inline: auto; }
+.rp-hero { position: relative; min-height: 560px; overflow: hidden; background: #f7f6f1; }
+.rp-hero-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
+.rp-hero-shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(255,255,255,.98) 0%, rgba(255,255,255,.93) 32%, rgba(255,255,255,.35) 52%, transparent 68%); }
+.rp-hero-content { position: relative; z-index: 1; min-height: 560px; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; padding-block: 64px 92px; }
+.rp-eyebrow { display: flex; align-items: center; gap: 8px; color: var(--rp-green); font-size: 15px; font-weight: 700; }
+.rp-eyebrow svg { width: 18px; height: 18px; }
+.rp-hero h1 { margin: 12px 0 14px; max-width: 590px; font-size: clamp(42px, 5vw, 68px); line-height: 1.04; letter-spacing: -.045em; font-weight: 800; }
+.rp-hero-copy { max-width: 510px; color: #59615b; font-size: 16px; line-height: 1.65; }
+.rp-hero-actions { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 28px; }
+.rp-btn { min-height: 48px; padding: 0 24px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; font-size: 14px; font-weight: 700; transition: background-color .2s, color .2s, border-color .2s; }
+.rp-btn svg { width: 17px; }
+.rp-btn-primary { color: #fff; background: var(--rp-green); border: 1px solid var(--rp-green); }
+.rp-btn-primary:hover { background: var(--rp-green-dark); }
+.rp-btn-secondary { color: var(--rp-ink); background: #fff; border: 1px solid #dce2dd; }
+.rp-btn-secondary:hover { border-color: var(--rp-green); color: var(--rp-green); }
+.rp-customer-note { display: flex; align-items: center; gap: 12px; margin-top: 28px; font-size: 13px; }
+.rp-avatar-stack { display: flex; }
+.rp-avatar-stack span { width: 30px; height: 30px; margin-left: -7px; display: grid; place-items: center; border: 2px solid white; border-radius: 50%; background: #dfeee3; color: var(--rp-green); font-size: 11px; font-weight: 800; }
+.rp-avatar-stack span:first-child { margin-left: 0; }
+.rp-services { position: relative; z-index: 3; margin-top: -42px; min-height: 102px; padding: 20px 30px; display: grid; grid-template-columns: repeat(3, 1fr); align-items: center; border: 1px solid #e9eee9; border-radius: 8px; background: rgba(255,255,255,.96); box-shadow: 0 16px 40px rgba(17,50,30,.10); backdrop-filter: blur(8px); }
+.rp-service { display: flex; align-items: center; justify-content: center; gap: 15px; padding: 8px 24px; }
+.rp-service + .rp-service { border-left: 1px solid #e7ebe8; }
+.rp-service-icon { color: var(--rp-green); }
+.rp-service-icon svg { width: 34px; height: 34px; stroke-width: 1.7; }
+.rp-service strong, .rp-service small { display: block; }
+.rp-service strong { font-size: 14px; }
+.rp-service small { margin-top: 5px; color: var(--rp-muted); font-size: 12px; }
+.rp-section { padding-top: 64px; }
+.rp-section-heading { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; margin-bottom: 25px; }
+.rp-section-heading h2 { font-size: clamp(25px, 2.2vw, 34px); line-height: 1.2; letter-spacing: -.035em; font-weight: 800; }
+.rp-section-heading p { margin-top: 7px; color: var(--rp-muted); font-size: 14px; }
+.rp-view-link { display: inline-flex; align-items: center; gap: 8px; padding-block: 8px; border-bottom: 1px solid #9ea7a0; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.rp-view-link:hover { color: var(--rp-green); border-color: var(--rp-green); }
+.rp-view-link svg { width: 14px; height: 14px; }
+.rp-category-grid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 20px; }
+.rp-category { display: flex; flex-direction: column; align-items: center; gap: 14px; color: #202622; text-align: center; font-size: 13px; font-weight: 700; }
+.rp-category-image { width: min(100%, 110px); aspect-ratio: 1; display: grid; place-items: center; overflow: hidden; border-radius: 50%; background: linear-gradient(145deg, #f5f7f3, #e9eee8); color: var(--rp-green); box-shadow: inset 0 0 0 1px #e5ebe5; transition: transform .2s, box-shadow .2s; }
+.rp-category:hover .rp-category-image { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(7,92,50,.14), inset 0 0 0 1px #c9ddcf; }
+.rp-category-image img { width: 100%; height: 100%; object-fit: cover; }
+.rp-category-skeleton { aspect-ratio: 1; border-radius: 50%; background: #edf0ed; animation: pulse 1.5s infinite; }
+.rp-product-heading { align-items: center; }
+.rp-tabs { display: flex; flex-wrap: wrap; gap: 26px; margin-top: 14px; color: #69716c; font-size: 12px; }
+.rp-tabs span { position: relative; padding-bottom: 8px; }
+.rp-tabs .active { color: var(--rp-ink); font-weight: 700; }
+.rp-tabs .active::after { content: ""; position: absolute; left: 0; bottom: 0; width: 18px; height: 2px; background: var(--rp-green); }
+.rp-product-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 24px; }
+.rp-empty { padding: 48px 20px; border-radius: 8px; background: #f6f8f6; color: var(--rp-muted); text-align: center; }
+.rp-promos { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding-top: 58px; }
+.rp-promo { min-height: 250px; padding: 34px 38px; position: relative; overflow: hidden; display: flex; align-items: center; border-radius: 8px; }
+.rp-promo > div { position: relative; z-index: 2; max-width: 72%; }
+.rp-promo p { font-size: 16px; font-weight: 800; }
+.rp-promo h2 { margin-top: 3px; font-size: clamp(28px, 3vw, 42px); line-height: .98; letter-spacing: -.04em; font-weight: 800; }
+.rp-promo span { display: block; margin-top: 12px; font-size: 13px; }
+.rp-promo strong { width: fit-content; min-height: 42px; margin-top: 20px; padding: 0 18px; display: inline-flex; align-items: center; gap: 7px; border-radius: 5px; background: var(--rp-green); color: white; font-size: 13px; }
+.rp-promo strong svg { width: 14px; }
+.rp-promo > svg { position: absolute; right: 28px; bottom: 15px; width: 150px; height: 150px; stroke-width: .9; opacity: .18; }
+.rp-promo-green { background: linear-gradient(120deg, #d8f0d4, #bfe6bb); color: #102214; }
+.rp-promo-warm { background: linear-gradient(120deg, #fff0df, #ffe0c5); color: #8d2d17; }
+.rp-promo-image { color: #fff; background: #1f3326; }
+.rp-promo-image > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.rp-promo-overlay { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(5,31,17,.82), rgba(5,31,17,.25)); }
+.rp-promo-image .rp-promo-content { max-width: 76%; }
+.rp-promo-image h2 { font-size: clamp(24px, 2.5vw, 34px); line-height: 1.08; }
+.rp-promo-image p { color: #d9f3df; }
+.rp-promo-image span:not(.rp-promo-overlay) { color: rgba(255,255,255,.88); }
+.rp-values { margin-top: 68px; padding-block: 28px 48px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+.rp-values > div { display: flex; align-items: center; gap: 14px; }
+.rp-values > div > span { width: 58px; height: 58px; flex: 0 0 58px; display: grid; place-items: center; border-radius: 50%; background: #eaf6eb; color: var(--rp-green); }
+.rp-values svg { width: 27px; height: 27px; stroke-width: 1.7; }
+.rp-values strong, .rp-values small { display: block; }
+.rp-values strong { font-size: 13px; }
+.rp-values small { margin-top: 4px; color: var(--rp-muted); font-size: 11px; }
+.rp-newsletter { background: linear-gradient(90deg, #f0f8f1, #e6f4e8); }
+.rp-newsletter-inner { min-height: 130px; display: flex; align-items: center; justify-content: space-between; gap: 40px; }
+.rp-newsletter h2 { font-size: 24px; font-weight: 800; letter-spacing: -.025em; }
+.rp-newsletter p { margin-top: 7px; color: var(--rp-muted); font-size: 13px; }
+.rp-subscribe { width: min(480px, 100%); min-height: 50px; position: relative; display: flex; align-items: center; border: 1px solid #dce7dd; border-radius: 5px; background: white; overflow: hidden; }
+.rp-subscribe > svg { width: 18px; margin-left: 16px; color: #8b948d; }
+.rp-subscribe input { min-width: 0; flex: 1; align-self: stretch; padding: 0 14px; outline: none; font-size: 13px; }
+.rp-subscribe button { align-self: stretch; padding: 0 28px; background: var(--rp-green); color: white; font-size: 13px; font-weight: 700; }
+.rp-subscribe button:hover { background: var(--rp-green-dark); }
+@keyframes pulse { 50% { opacity: .5; } }
+@media (max-width: 1023px) {
+  .rp-hero, .rp-hero-content { min-height: 500px; }
+  .rp-category-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .rp-product-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .rp-services { padding-inline: 12px; }
+  .rp-service { padding-inline: 12px; }
+  .rp-values { grid-template-columns: repeat(2, 1fr); }
 }
-.scrollbar-none {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+@media (max-width: 767px) {
+  .rp-container { width: min(100% - 28px, 1180px); }
+  .rp-hero { min-height: 570px; }
+  .rp-hero-image { object-position: 67% center; }
+  .rp-hero-shade { background: linear-gradient(180deg, rgba(255,255,255,.94) 0%, rgba(255,255,255,.93) 52%, rgba(255,255,255,.58) 74%, rgba(255,255,255,.2) 100%); }
+  .rp-hero-content { min-height: 570px; justify-content: flex-start; padding-top: 54px; }
+  .rp-hero h1 { font-size: 42px; max-width: 400px; }
+  .rp-hero-copy { max-width: 420px; font-size: 14px; }
+  .rp-services { margin-top: -32px; padding: 16px; grid-template-columns: 1fr; }
+  .rp-service { justify-content: flex-start; padding: 12px; }
+  .rp-service + .rp-service { border-left: 0; border-top: 1px solid #e7ebe8; }
+  .rp-section { padding-top: 48px; }
+  .rp-section-heading { align-items: flex-start; }
+  .rp-product-heading { flex-direction: column; }
+  .rp-product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .rp-promos { grid-template-columns: 1fr; padding-top: 48px; }
+  .rp-promo { min-height: 220px; padding: 28px; }
+  .rp-newsletter-inner { padding-block: 30px; flex-direction: column; align-items: flex-start; gap: 22px; }
 }
+@media (max-width: 479px) {
+  .rp-hero h1 { font-size: 35px; }
+  .rp-customer-note { align-items: flex-start; flex-direction: column; }
+  .rp-category-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px 8px; }
+  .rp-category { font-size: 10px; }
+  .rp-category-image { width: 68px; }
+  .rp-section-heading h2 { font-size: 24px; }
+  .rp-view-link { display: none; }
+  .rp-tabs { gap: 16px; }
+  .rp-promo > div { max-width: 82%; }
+  .rp-values { grid-template-columns: 1fr; }
+  .rp-subscribe > svg { display: none; }
+  .rp-subscribe button { padding-inline: 16px; }
+}
+@media (prefers-reduced-motion: reduce) { .rp-category-image, .rp-btn { transition: none; } }
 </style>
-

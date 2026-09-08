@@ -232,6 +232,7 @@ function mapProduct(p) {
     id:             p.id,
     title:          p.name ?? p.title ?? 'Untitled Product',
     description:    p.details ?? p.description ?? '',
+    shortDescription: p.short_description ?? p.shortDescription ?? p.short_details ?? '',
     originalPrice:  origPrice || discountedPrice,
     discountedPrice: discountedPrice,
     discountPercent: discountPercent,
@@ -910,6 +911,10 @@ export async function fetchAdminSliders() {
       image:     imageUrl(s.photo ?? null),
       photo:     s.photo ?? null,
       link:      s.link ?? '/products-list',
+      type:      s.type ?? 'main',
+      description: s.description ?? '',
+      buttonText: s.button_text ?? '',
+      badge:      s.badge ?? '',
       published: s.published,
     }));
   } catch (err) {
@@ -1289,4 +1294,3 @@ export function fetchOrderDetails(orderId) {
 export function fetchOrderItems(orderId) {
   return apiFetch(`/purchase-history-items/${orderId}`);
 }
-

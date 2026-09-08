@@ -72,6 +72,18 @@
                             </div>
                         </div>
                         <div class="form-group row">
+                            <label class="col-sm-3 col-from-label">{{ translate('Dummy Product Images') }}</label>
+                            <div class="col-sm-9">
+                                <label class="aiz-switch aiz-switch-success mb-1">
+                                    <input type="hidden" name="types[]" value="dummy_product_images">
+                                    <input type="hidden" name="dummy_product_images" value="0">
+                                    <input type="checkbox" name="dummy_product_images" value="1" @if(get_setting('dummy_product_images') == '1') checked @endif>
+                                    <span></span>
+                                </label>
+                                <small class="d-block text-muted">{{ translate('Show grocery dummy images on product cards when a product has no image. Turn off to show the normal placeholder.') }}</small>
+                            </div>
+                        </div>
+                        <div class="form-group row">
                             <label class="col-sm-3 col-from-label">{{translate('System Timezone')}}</label>
                             <div class="col-sm-9">
                                 <input type="hidden" name="types[]" value="timezone">

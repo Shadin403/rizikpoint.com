@@ -152,6 +152,62 @@ const selectedColor = ref(null); // color object: { name, code }
 const selectedOptions = ref({}); // map: { attribute_name: value }
 const variantPriceInfo = ref(null); // { price, price_string, stock, image }
 const activeTab = ref("description"); // 'description' or 'return'
+
+const shortDescription = computed(() => {
+  if (!deal.value) return "";
+  return deal.value.shortDescription || deal.value.short_description || "";
+});
+
+function normalizeVariationOption(option) {
+  if (option && typeof option === "object") {
+    const value = option.value ?? option.code ?? option.name ?? option.label ?? "";
+    return { value: String(value), label: option.label ?? option.name ?? option.value ?? value };
+  }
+  return { value: String(option ?? ""), label: String(option ?? "") };
+}
+
+const variationGroups = computed(() => {
+  if (!deal.value) return [];
+  const groups = [];
+  const choiceOptions = Array.isArray(deal.value.choice_options) ? deal.value.choice_options : [];
+
+  choiceOptions.forEach((option, index) => {
+    const key = String(option?.name ?? option?.title ?? option?.attribute_name ?? `variation_${index}`);
+    const rawOptions = option?.options ?? option?.values ?? option?.choices ?? [];
+    const options = (Array.isArray(rawOptions) ? rawOptions : []).map(normalizeVariationOption).filter((item) => item.value);
+    if (options.length) groups.push({ key, label: option?.name ?? option?.title ?? option?.attribute_name ?? "Variation", options });
+  });
+
+  const colors = Array.isArray(deal.value.colors) ? deal.value.colors : [];
+  if (colors.length) {
+    groups.push({
+      key: "__color",
+      label: locale.value === "bn" ? "রঙ" : "Color",
+      options: colors.map(normalizeVariationOption),
+    });
+  }
+  return groups;
+});
+
+const selectedColorCode = computed(() => {
+  if (!selectedColor.value) return "";
+  return typeof selectedColor.value === "object"
+    ? (selectedColor.value.code ?? selectedColor.value.value ?? "")
+    : selectedColor.value;
+});
+
+const selectedColorName = computed(() => {
+  if (!selectedColor.value) return "";
+  return typeof selectedColor.value === "object"
+    ? (selectedColor.value.name ?? selectedColor.value.label ?? selectedColor.value.code ?? "")
+    : selectedColor.value;
+});
+
+function selectColor(value) {
+  const colors = Array.isArray(deal.value?.colors) ? deal.value.colors : [];
+  selectedColor.value = colors.find((color) => normalizeVariationOption(color).value === value) ?? { name: value, code: value };
+  updateDynamicVariantInfo();
+}
 // ── Resolve image URL from backend path ─────────────────────────────────────
 const BACKEND_ORIGIN =
   import.meta.env.VITE_BACKEND_ORIGIN || "http://127.0.0.1:8000";
@@ -201,8 +257,10 @@ async function loadDealDetail() {
     }
     if (deal.value?.choice_options?.length > 0) {
       deal.value.choice_options.forEach((opt) => {
-        if (opt.options?.length > 0) {
-          selectedOptions.value[opt.name] = opt.options[0];
+        const rawOptions = opt.options ?? opt.values ?? opt.choices ?? [];
+        const optionKey = String(opt.name ?? opt.title ?? opt.attribute_name ?? "");
+        if (optionKey && rawOptions.length > 0) {
+          selectedOptions.value[optionKey] = normalizeVariationOption(rawOptions[0]).value;
         }
       });
     }
@@ -389,7 +447,7 @@ watch(
 async function updateDynamicVariantInfo() {
   if (!deal.value) return;
   const productId = deal.value.id;
-  const colorHex = selectedColor.value ? selectedColor.value.code : "";
+  const colorHex = selectedColorCode.value;
   const optionsArray = Object.values(selectedOptions.value);
   const info = await fetchVariantPrice(productId, colorHex, optionsArray);
   if (info) {
@@ -474,7 +532,7 @@ function handleAddToCart(event) {
   const price = variantPriceInfo.value
     ? variantPriceInfo.value.price
     : (deal.value.discountedPrice ?? deal.value.originalPrice ?? 0);
-  const color = selectedColor.value ? selectedColor.value.name : "";
+  const color = selectedColorName.value;
   const optionsArray = Object.values(selectedOptions.value);
   const variantStr = optionsArray.join("-");
   const imgUrl = variantPriceInfo.value?.image
@@ -513,7 +571,7 @@ function handleOrder() {
   const price = variantPriceInfo.value
     ? variantPriceInfo.value.price
     : (deal.value.discountedPrice ?? deal.value.originalPrice ?? 0);
-  const color = selectedColor.value ? selectedColor.value.name : "";
+  const color = selectedColorName.value;
   const optionsArray = Object.values(selectedOptions.value);
   const variantStr = optionsArray.join("-");
   addItem({
@@ -596,12 +654,12 @@ function handleOrder() {
         <div class="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
           <!-- Left: Product Image Container -->
           <div class="md:col-span-4 flex flex-col items-center justify-center p-3 border border-gray-100 rounded-md bg-white">
-            <div class="aspect-square relative w-full flex items-center justify-center overflow-hidden max-h-[340px]">
+            <div class="relative w-full h-[280px] sm:h-[340px] md:h-[380px] lg:h-[430px] max-h-[62vh] flex items-center justify-center overflow-hidden rounded-md bg-gray-50/60">
               <img
                 v-if="activeImage"
                 :src="activeImage"
                 :alt="deal.title"
-                class="w-full h-full object-contain"
+                class="block w-auto h-auto max-w-full max-h-full object-contain object-center"
                 loading="eager"
               />
               <div v-else class="w-full h-full flex items-center justify-center bg-gray-50">
@@ -630,32 +688,41 @@ function handleOrder() {
               {{ deal.title }}
             </h1>
 
-            <!-- Metadata Stack -->
-            <div class="space-y-1.5 text-xs font-normal text-gray-600">
-              <div>
-                <span class="font-bold text-gray-900">Unit : </span>
-                <span>{{ deal.unit || 'EACH' }}</span>
-              </div>
-              <div v-if="deal.brandName">
-                <span class="font-bold text-gray-900">Brand : </span>
-                <span>{{ deal.brandName }}</span>
-              </div>
-              <div>
-                <span class="font-bold text-gray-900">Sold By : </span>
-                <span>{{ deal.storeName || 'Meena Bazar' }}</span>
-              </div>
-              <div v-if="deal.categoryName">
-                <span class="font-bold text-gray-900">Category : </span>
-                <span>{{ deal.categoryName }}</span>
+            <!-- Short description and product variations -->
+            <p v-if="shortDescription" class="max-w-2xl text-sm leading-relaxed text-gray-600">
+              {{ shortDescription }}
+            </p>
+
+            <div v-if="variationGroups.length" class="space-y-3 pt-1">
+              <div v-for="group in variationGroups" :key="group.key" class="flex flex-col gap-1.5 max-w-sm">
+                <label :for="`variation-${group.key}`" class="text-xs font-bold text-gray-900">{{ group.label }}</label>
+                <select
+                  v-if="group.key !== '__color'"
+                  :id="`variation-${group.key}`"
+                  v-model="selectedOptions[group.key]"
+                  class="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-800 outline-none focus:border-[#168039] focus:ring-1 focus:ring-[#168039]"
+                  @change="updateDynamicVariantInfo"
+                >
+                  <option v-for="option in group.options" :key="option.value" :value="option.value">{{ option.label }}</option>
+                </select>
+                <select
+                  v-else
+                  :id="`variation-${group.key}`"
+                  :value="selectedColorCode"
+                  class="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-800 outline-none focus:border-[#168039] focus:ring-1 focus:ring-[#168039]"
+                  @change="selectColor($event.target.value)"
+                >
+                  <option v-for="option in group.options" :key="option.value" :value="option.value">{{ option.label }}</option>
+                </select>
               </div>
             </div>
 
             <!-- Price Display -->
             <div class="pt-2 pb-1">
-              <span class="text-2xl sm:text-3xl font-bold text-gray-900 font-sans tracking-tight">
+              <span :class="deal.originalPrice > deal.discountedPrice && deal.discountedPrice != null ? 'text-red-600' : 'text-gray-900'" class="text-2xl sm:text-3xl font-bold font-sans tracking-tight">
                 TK {{ fmt(deal.discountedPrice ?? deal.originalPrice) }}
               </span>
-              <span v-if="deal.originalPrice > deal.discountedPrice && deal.discountedPrice != null" class="text-sm text-gray-400 line-through ml-2 font-normal">
+              <span v-if="deal.originalPrice > deal.discountedPrice && deal.discountedPrice != null" class="text-base text-gray-500 line-through ml-3 font-normal">
                 TK {{ fmt(deal.originalPrice) }}
               </span>
             </div>

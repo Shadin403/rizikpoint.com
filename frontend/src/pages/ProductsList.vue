@@ -4,6 +4,8 @@ import { useRoute, useRouter } from "vue-router";
 import { SlidersHorizontal, ChevronDown, RotateCcw, Search, Loader2, LayoutGrid, List } from "@lucide/vue";
 import { fetchDealsPaged, fetchFilterCategories, fetchFilterBrands } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { useBusinessSettings } from "@/composables/useBusinessSettings";
+import { dummyProductImage } from "@/lib/dummyProductImages";
 import ProductCard from "@/components/shared/ProductCard.vue";
 import SkeletonLoader from "@/components/shared/SkeletonLoader.vue";
 import { usePageTitle } from "@/composables/usePageTitle";
@@ -12,6 +14,15 @@ usePageTitle(pageTitles.ProductsList);
 const route  = useRoute();
 const router = useRouter();
 const { locale, t } = useI18n();
+const { get: getBusinessSetting } = useBusinessSettings();
+const dummyImagesEnabled = computed(() => {
+  const value = getBusinessSetting('dummy_product_images');
+  return ['1', 'true', 'on', 'yes'].includes(String(value ?? '').toLowerCase());
+});
+
+function listImageFor(product) {
+  return product.imageUrl || (dummyImagesEnabled.value ? dummyProductImage(product) : null);
+}
 
 // ── Filter state ───────────────────────────────────────────────────────────────
 const sortBy             = ref("latest");
@@ -604,8 +615,8 @@ const dealLink = (product) => {
                   class="block w-full sm:w-48 flex-shrink-0 bg-gray-50 rounded-xl overflow-hidden"
                 >
                   <img
-                    v-if="product.imageUrl"
-                    :src="product.imageUrl"
+                    v-if="listImageFor(product)"
+                    :src="listImageFor(product)"
                     :alt="product.title"
                     class="w-full h-40 sm:h-full object-cover"
                   />

@@ -1,7 +1,9 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { Clock, Eye, ArrowRight } from "@lucide/vue";
 import { useI18n } from "@/lib/i18n";
+import { useBusinessSettings } from "@/composables/useBusinessSettings";
+import { dummyProductImage } from "@/lib/dummyProductImages";
 
 const props = defineProps({
   deal: { type: Object, required: true },
@@ -9,6 +11,16 @@ const props = defineProps({
 });
 
 const { locale, t } = useI18n();
+const { get: getBusinessSetting } = useBusinessSettings();
+const imageFailed = ref(false);
+const dummyImagesEnabled = computed(() => {
+  const value = getBusinessSetting('dummy_product_images');
+  return ['1', 'true', 'on', 'yes'].includes(String(value ?? '').toLowerCase());
+});
+const displayImage = computed(() => {
+  if (props.deal.imageUrl && !imageFailed.value) return props.deal.imageUrl;
+  return dummyImagesEnabled.value ? dummyProductImage(props.deal) : null;
+});
 
 const timeLeft = ref("");
 let intervalId = null;
@@ -48,10 +60,11 @@ onUnmounted(() => {
   <div class="h-full border border-gray-200 rounded-lg overflow-hidden flex flex-col bg-white group hover:shadow-lg transition-all duration-300">
     <div class="relative aspect-[4/3] bg-gray-100 overflow-hidden">
       <img
-        v-if="deal.imageUrl"
-        :src="deal.imageUrl"
+        v-if="displayImage"
+        :src="displayImage"
         :alt="deal.title"
         class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+        @error="imageFailed = true"
       />
       <div v-else class="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400">
         <span class="font-display font-bold text-xl opacity-50">{{ deal.storeName }}</span>

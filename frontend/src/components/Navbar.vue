@@ -1,1030 +1,257 @@
-﻿<script setup>
-import { ref, onMounted, onBeforeUnmount, watch, computed } from "vue";
+<script setup>
+import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useCart } from "@/store/cart";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/store/auth";
+import { searchProducts } from "@/lib/api";
+import { useBusinessSettings } from "@/composables/useBusinessSettings";
 import { toast } from "@/lib/toast";
-import {
-  Search,
-  ShoppingCart,
-  Menu,
-  X,
-  Home,
-  Package,
-  Tag,
-  Phone,
-  ChevronDown,
-  ChevronRight,
-  Sparkles,
-  User,
-  Loader2,
-  Info,
-  FileText,
-  Shield,
-  HelpCircle,
-  RotateCcw,
-  LayoutDashboard,
-} from "@lucide/vue";
-
-import { fetchSubCategories, searchProducts } from "@/lib/api";
-import { useBusinessSettings, useCategories } from "@/composables/useBusinessSettings";
-import CategoryIcon from "@/components/shared/CategoryIcon.vue";
+import { Heart, Loader2, Menu, Search, ShoppingCart, User, X } from "@lucide/vue";
 
 const router = useRouter();
-const menuOpen = ref(false);
-const searchOpen = ref(false);
-const searchQuery = ref("");
-const megaMenuOpen = ref(false);
-const accountMenuOpen = ref(false);
-
 const { totalItems, openCart, subtotal } = useCart();
-const { locale, t, toggleLocale } = useI18n();
+const { locale, toggleLocale } = useI18n();
 const { user, isAuthenticated, openAuth, logout } = useAuth();
+const { settings, get } = useBusinessSettings();
 
-// Dynamic Settings
 const headerLogo = ref("");
 const logoError = ref(false);
 const appName = ref("");
-const helplineNumber = ref("");
-const enableStickyHeader = ref(false);
-const categories = ref([]);
-const categoriesExpanded = ref(false);
-const subCategories = ref([]);
-const loadingSubCategories = ref(false);
-let subCategoriesLoaded = false;
-
-async function toggleCategories() {
-  categoriesExpanded.value = !categoriesExpanded.value;
-  if (categoriesExpanded.value && !subCategoriesLoaded) {
-    await loadSubCategories();
-  }
-}
-
-async function loadSubCategories() {
-  // If categories not yet loaded, fetch them first
-  if (categories.value.length === 0) {
-    try {
-      categories.value = await fetchCategories();
-    } catch (err) {
-      console.error("Failed to load categories for sub-menu", err);
-      return;
-    }
-  }
-  // Load sub-categories for the first parent
-  loadingSubCategories.value = true;
-  try {
-    const parent = categories.value[0];
-    if (parent) {
-      subCategories.value = await fetchSubCategories(parent.id);
-    }
-    subCategoriesLoaded = true;
-  } catch (err) {
-    console.error("Failed to load sub-categories", err);
-  } finally {
-    loadingSubCategories.value = false;
-  }
-}
-
-// Live search state
-const selectedCategory = ref(null);     // null = All categories
-const categoryDropdownOpen = ref(false);
-const suggestionsOpen = ref(false);
+const menuOpen = ref(false);
+const searchOpen = ref(false);
+const searchQuery = ref("");
 const suggestions = ref([]);
+const suggestionsOpen = ref(false);
 const isSearching = ref(false);
 const searchInputRef = ref(null);
-const searchContainerRef = ref(null);
-let searchDebounceTimer = null;
-let activeSearchToken = 0;
-
-const selectedCategoryName = computed(() => {
-  if (selectedCategory.value === null) {
-    return locale.value === "bn" ? "সব ক্যাটাগরি" : "All Categories";
-  }
-  const cat = categories.value.find((c) => c.id === selectedCategory.value);
-  return cat ? cat.name : (locale.value === "bn" ? "ক্যাটাগরি" : "Category");
-});
-
-const { settings, get } = useBusinessSettings();
-const { categories: injectedCategories } = useCategories();
+const mobileSearchInputRef = ref(null);
+let searchTimer = null;
+let searchToken = 0;
 
 function syncSettings() {
   headerLogo.value = get("header_logo");
-  appName.value = get("app_name") || "";
-  helplineNumber.value = get("helpline_number") || "01635585340";
-  enableStickyHeader.value = get("header_stikcy") === "on";
+  appName.value = get("app_name") || "Rizik Point";
 }
 
 onMounted(() => {
   syncSettings();
-  document.addEventListener("click", handleDocumentClick);
+  document.addEventListener("click", closeSearchOnOutsideClick);
 });
-
-watch(settings, syncSettings, { immediate: false });
-
-watch(injectedCategories, (val) => {
-  if (val.length > 0) categories.value = val
-})
-
+watch(settings, syncSettings);
 onBeforeUnmount(() => {
-  document.removeEventListener("click", handleDocumentClick);
-  if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+  document.removeEventListener("click", closeSearchOnOutsideClick);
+  if (searchTimer) clearTimeout(searchTimer);
 });
 
-function handleDocumentClick(e) {
-  if (searchContainerRef.value && !searchContainerRef.value.contains(e.target)) {
-    suggestionsOpen.value = false;
-    categoryDropdownOpen.value = false;
-  }
+function closeSearchOnOutsideClick(event) {
+  const target = event.target;
+  if (!(target instanceof Element) || !target.closest(".rp-search-wrap")) suggestionsOpen.value = false;
 }
 
-function selectCategory(catId) {
-  selectedCategory.value = catId;
-  categoryDropdownOpen.value = false;
-  if (searchQuery.value.trim()) {
-    runLiveSearch();
+function toggleSearch() {
+  searchOpen.value = !searchOpen.value;
+  if (searchOpen.value) {
+    requestAnimationFrame(() => {
+      const input = window.innerWidth < 768 ? mobileSearchInputRef.value : searchInputRef.value;
+      input?.focus();
+    });
   }
-  searchInputRef.value?.focus();
 }
 
 function onSearchInput() {
-  if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+  if (searchTimer) clearTimeout(searchTimer);
   const term = searchQuery.value.trim();
   if (!term) {
     suggestions.value = [];
     suggestionsOpen.value = false;
     return;
   }
-  // 250ms debounce - feels live without spamming the API
-  searchDebounceTimer = setTimeout(runLiveSearch, 250);
+  searchTimer = setTimeout(runSearch, 250);
 }
 
-async function runLiveSearch() {
+async function runSearch() {
   const term = searchQuery.value.trim();
-  if (!term) {
-    suggestions.value = [];
-    suggestionsOpen.value = false;
-    return;
-  }
-  activeSearchToken += 1;
-  const token = activeSearchToken;
+  if (!term) return;
+  const token = ++searchToken;
   isSearching.value = true;
   suggestionsOpen.value = true;
   try {
-    const results = await searchProducts({
-      search: term,
-      categoryId: selectedCategory.value || undefined,
-      limit: 8,
-    });
-    if (token !== activeSearchToken) return; // stale response
-    suggestions.value = results;
-  } catch (err) {
-    if (token !== activeSearchToken) return;
-    suggestions.value = [];
+    const result = await searchProducts({ search: term, limit: 6 });
+    if (token === searchToken) suggestions.value = result;
+  } catch {
+    if (token === searchToken) suggestions.value = [];
   } finally {
-    if (token === activeSearchToken) isSearching.value = false;
+    if (token === searchToken) isSearching.value = false;
   }
+}
+
+function submitSearch() {
+  const term = searchQuery.value.trim();
+  if (!term) return;
+  suggestionsOpen.value = false;
+  router.push({ path: "/deals", query: { search: term } });
 }
 
 function pickSuggestion(product) {
   suggestionsOpen.value = false;
   searchQuery.value = "";
-  suggestions.value = [];
   router.push(`/deals/${product.slug || product.id}`);
 }
 
-function handleSearchSubmit() {
-  const term = searchQuery.value.trim();
-  if (!term) return;
-  const query = { search: term };
-  if (selectedCategory.value) query.category = selectedCategory.value;
-  suggestionsOpen.value = false;
-  suggestions.value = [];
-  router.push({ path: "/deals", query });
-  searchInputRef.value?.blur();
+function openAccount() {
+  if (isAuthenticated.value) router.push("/dashboard");
+  else openAuth("login");
 }
 
-function handleLoginClick() {
-  toast({
-    title: t("checkout_feature"),
-    description: t("checkout_coming_soon"),
-  });
+function showWishlistNotice() {
+  toast({ title: locale.value === "bn" ? "উইশলিস্ট শীঘ্রই আসছে" : "Wishlist coming soon" });
 }
 
-function handleContactClick() {
-  router.push("/contact");
-}
+const vFocus = { mounted: (el) => el.focus() };
 </script>
 
 <template>
-  <div>
-    <!-- Responsive Desktop Header Layout -->
-    <header
-    :class="[
-      'bg-white border-b border-gray-200 hidden md:block transition-all duration-300',
-      enableStickyHeader ? 'sticky top-0 z-40 shadow-md' : '',
-    ]"
-  >
-    <!-- Top Row: Logo, Search, Actions -->
-    <div
-      class="max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between"
-    >
-      <!-- Logo -->
-      <router-link to="/" class="flex items-center gap-3">
-        <img
-          v-if="headerLogo && !logoError"
-          :src="headerLogo"
-          alt="Logo"
-          class="w-auto object-contain" style="height: 90px;"
-          @error="logoError = true"
-        />
-        <span v-else class="text-xl font-bold text-primary font-display">{{ appName || 'RizikPoint' }}</span>
-        <!-- <div
-          v-else
-          class="w-10 h-10 bg-primary rounded-lg flex items-center justify-center font-bold text-white text-lg font-display"
-        >
-          {{ (appName || "S").charAt(0).toUpperCase() }}
-        </div> -->
-        <!-- <div class="flex flex-col">
-          <span
-            class="font-bold text-primary text-xl font-display leading-none"
-          >
-            {{ appName }}
-          </span>
-          <span
-            class="text-gray-400 text-[9px] tracking-widest leading-none mt-1 font-bold uppercase"
-          >
-            Best Deals Daily
-          </span>
-        </div> -->
-      </router-link>
-
-      <!-- Center Search Bar with Category Filter + Live Suggestions -->
-      <div ref="searchContainerRef" class="flex-1 max-w-2xl mx-8 relative">
-        <form
-          @submit.prevent="handleSearchSubmit"
-          class="flex items-center bg-white border border-gray-200 rounded-full overflow-visible shadow-sm hover:shadow-md hover:border-primary/40 transition-all duration-200"
-        >
-          <!-- Category selector -->
-          <div class="relative shrink-0">
-            <button
-              type="button"
-              @click.stop="categoryDropdownOpen = !categoryDropdownOpen"
-              class="flex items-center gap-1.5 pl-4 pr-3 h-11 text-xs font-bold text-gray-700 hover:text-primary transition-colors cursor-pointer whitespace-nowrap max-w-[160px]"
-            >
-              <Tag class="w-3.5 h-3.5 text-primary" />
-              <span class="truncate">{{ selectedCategoryName }}</span>
-              <ChevronDown
-                class="w-3.5 h-3.5 transition-transform"
-                :class="categoryDropdownOpen ? 'rotate-180' : ''"
-              />
-            </button>
-            <!-- Vertical divider -->
-            <span class="absolute right-0 top-1/2 -translate-y-1/2 h-5 w-px bg-gray-200"></span>
-
-            <!-- Category dropdown -->
-            <transition name="fade">
-              <div
-                v-show="categoryDropdownOpen"
-                class="absolute left-0 top-full mt-2 w-56 bg-white border border-gray-100 rounded-2xl shadow-xl py-2 z-50 max-h-72 overflow-y-auto"
-              >
-                <button
-                  type="button"
-                  @click="selectCategory(null)"
-                  class="w-full text-left px-4 py-2 text-xs font-semibold hover:bg-primary/5 hover:text-primary flex items-center gap-2 cursor-pointer"
-                  :class="selectedCategory === null ? 'text-primary bg-primary/5' : 'text-gray-700'"
-                >
-                  <span class="w-2 h-2 rounded-full" :class="selectedCategory === null ? 'bg-primary' : 'bg-gray-300'"></span>
-                  {{ locale === "bn" ? "সব ক্যাটাগরি" : "All Categories" }}
-                </button>
-                <div class="h-px bg-gray-100 my-1"></div>
-                <button
-                  v-for="cat in categories"
-                  :key="cat.id"
-                  type="button"
-                  @click="selectCategory(cat.id)"
-                  class="w-full text-left px-4 py-2 text-xs font-semibold hover:bg-primary/5 hover:text-primary flex items-center gap-2 cursor-pointer"
-                  :class="selectedCategory === cat.id ? 'text-primary bg-primary/5' : 'text-gray-700'"
-                >
-                  <span class="w-2 h-2 rounded-full" :class="selectedCategory === cat.id ? 'bg-primary' : 'bg-gray-300'"></span>
-                  <span class="truncate">{{ cat.name }}</span>
-                </button>
-              </div>
-            </transition>
-          </div>
-
-          <!-- Search input -->
-          <div class="relative flex-1 flex items-center">
-            <input
-              ref="searchInputRef"
-              type="text"
-              v-model="searchQuery"
-              @input="onSearchInput"
-              @focus="searchQuery.trim() && (suggestionsOpen = true)"
-              :placeholder="t('search_placeholder')"
-              class="flex-1 px-3 h-11 bg-transparent outline-none text-sm text-gray-800 placeholder:text-gray-400"
-              autocomplete="off"
-            />
-            <Loader2
-              v-if="isSearching"
-              class="w-4 h-4 text-primary animate-spin mr-2"
-            />
-          </div>
-
-          <!-- Search button (primary) -->
-          <button
-            type="submit"
-            class="bg-primary hover:bg-primary/90 h-11 w-12 text-white flex items-center justify-center transition-colors cursor-pointer rounded-r-full"
-          >
-            <Search class="w-4 h-4" />
-          </button>
-        </form>
-
-        <!-- Live suggestions dropdown -->
-        <transition name="fade">
-          <div
-            v-if="suggestionsOpen && (suggestions.length > 0 || isSearching || searchQuery.trim())"
-            class="absolute left-0 right-0 top-full mt-2 bg-white border border-gray-100 rounded-2xl shadow-2xl z-50 overflow-hidden"
-          >
-            <div v-if="isSearching && suggestions.length === 0" class="px-4 py-6 text-center text-xs text-gray-500">
-              <Loader2 class="w-4 h-4 animate-spin inline mr-2" />
-              {{ locale === "bn" ? "খোঁজা হচ্ছে..." : "Searching..." }}
-            </div>
-            <div
-              v-else-if="suggestions.length === 0 && searchQuery.trim()"
-              class="px-4 py-6 text-center text-xs text-gray-500"
-            >
-              {{ locale === "bn" ? "কোনো পণ্য পাওয়া যায়নি" : "No products found" }}
-            </div>
-            <ul v-else class="max-h-96 overflow-y-auto py-1">
-              <li
-                v-for="p in suggestions"
-                :key="p.id"
-                @mousedown.prevent="pickSuggestion(p)"
-                class="flex items-center gap-3 px-3 py-2 mx-1 rounded-xl hover:bg-primary/5 cursor-pointer transition-colors"
-              >
-                <img
-                  v-if="p.imageUrl"
-                  :src="p.imageUrl"
-                  :alt="p.title"
-                  class="w-10 h-10 rounded-lg object-cover bg-gray-100 shrink-0"
-                />
-                <div
-                  v-else
-                  class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0"
-                >
-                  <Package class="w-4 h-4 text-primary" />
-                </div>
-                <div class="flex-1 min-w-0">
-                  <div class="text-xs font-bold text-gray-800 line-clamp-2 break-words">{{ p.title }}</div>
-                  <div class="text-[10px] text-gray-500 truncate" v-if="p.categoryName">
-                    {{ p.categoryName }}
-                  </div>
-                </div>
-                <div v-if="p.discountedPrice" class="text-xs font-extrabold text-primary shrink-0">
-                  ৳{{ p.discountedPrice }}
-                </div>
-              </li>
-            </ul>
-            <div
-              v-if="suggestions.length > 0"
-              class="border-t border-gray-100 px-4 py-2.5 text-center bg-gray-50/60"
-            >
-              <button
-                type="button"
-                @mousedown.prevent="handleSearchSubmit"
-                class="text-[11px] font-extrabold text-primary hover:underline cursor-pointer"
-              >
-                {{ locale === "bn"
-                    ? `“${searchQuery}” এর জন্য সব ফলাফল দেখুন`
-                    : `See all results for “${searchQuery}”`
-                }} →
-              </button>
-            </div>
-          </div>
-        </transition>
-      </div>
-      <!-- Right actions: Login & Cart -->
-      <div class="flex items-center gap-4">
-        <template v-if="isAuthenticated">
-          <div class="flex items-center gap-3">
-            <span class="text-sm font-semibold text-gray-700">
-              {{ user?.name }}
-            </span>
-            <button
-              @click="logout"
-              class="bg-gray-100 hover:bg-gray-250 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer border border-gray-200"
-            >
-              {{ locale === "bn" ? "লগআউট" : "Logout" }}
-            </button>
-          </div>
-        </template>
-        <template v-else>
-          <button
-            @click="openAuth('login')"
-            class="bg-primary hover:bg-primary/90 text-white px-5 py-2 rounded-lg text-sm font-semibold transition-colors cursor-pointer"
-          >
-            {{ locale === "bn" ? "লগইন / সাইন আপ" : "Login / Sign Up" }}
-          </button>
-        </template>
-
-        <button
-          @click="openCart"
-          class="flex items-center gap-2 text-gray-700 hover:text-primary transition-colors cursor-pointer"
-        >
-          <span class="relative">
-            <ShoppingCart class="w-6 h-6 text-gray-600" />
-            <span
-              v-if="totalItems > 0"
-              class="absolute -top-1.5 -right-1.5 w-4.5 h-4.5 bg-primary text-white text-[10px] font-bold rounded-full flex items-center justify-center"
-            >
-              {{ totalItems }}
-            </span>
-          </span>
-          <span class="text-sm font-medium font-display text-gray-600"
-            >cart</span
-          >
-        </button>
+  <div class="rp-navbar">
+    <div class="rp-topbar">
+      <div class="rp-nav-container">
+        <span><ShoppingCart aria-hidden="true" /> {{ locale === "bn" ? "৳১০০০-এর বেশি অর্ডারে ফ্রি ডেলিভারি" : "Free Home Delivery on Orders Over ৳1000" }} <i>•</i> {{ locale === "bn" ? "টাটকা কাট" : "Fresh Cut" }} <i>•</i> {{ locale === "bn" ? "স্বাস্থ্যসম্মত" : "Hygienic" }} <i>•</i> {{ locale === "bn" ? "সময় বাঁচান" : "Save Time" }}</span>
+        <strong>{{ locale === "bn" ? "এখনই অর্ডার করুন" : "Order Now" }} <span aria-hidden="true">→</span></strong>
       </div>
     </div>
 
-    <!-- Bottom Row: Navigation Bar in Theme Primary Green -->
-    <div class="bg-primary text-white relative">
-      <div
-        class="max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8 h-12 flex items-center justify-between"
-      >
-        <!-- Nav Links -->
-        <nav class="flex items-center gap-6 h-full">
-          <router-link
-            to="/"
-            class="hover:bg-white/10 px-3 h-full flex items-center text-sm font-semibold transition-colors"
-          >
-            {{ locale === "bn" ? "হোম" : "Home" }}
-          </router-link>
+    <header class="rp-header">
+      <div class="rp-nav-container rp-nav-row">
+        <router-link to="/" class="rp-brand" aria-label="Rizik Point home">
+          <img v-if="headerLogo && !logoError" :src="headerLogo" alt="Rizik Point" @error="logoError = true" />
+          <span v-else class="rp-brand-mark" aria-hidden="true"></span>
+          <span><b>{{ appName }}</b><small>Ready to Cook</small></span>
+        </router-link>
 
-          <!-- Category Trigger with Mega Menu -->
-          <div
-            class="relative h-full flex items-center group cursor-pointer"
-            @mouseenter="megaMenuOpen = true"
-            @mouseleave="megaMenuOpen = false"
-          >
-            <span
-              class="hover:bg-white/10 px-3 h-full flex items-center text-sm font-semibold transition-colors gap-1"
-            >
-              {{ locale === "bn" ? "ক্যাটাগরি" : "Categories" }}
-              <ChevronDown class="w-3.5 h-3.5" />
-            </span>
-
-            <!-- Mega Menu Dropdown Card -->
-            <transition name="fade">
-              <div
-                v-show="megaMenuOpen"
-                class="absolute left-0 mt-0 top-full bg-white border border-gray-200 shadow-2xl rounded-b-2xl p-6 z-50 text-gray-800 border-t-4 border-primary w-[640px]"
-              >
-                <div
-                  class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-4 border-b pb-2"
-                >
-                  {{ locale === "bn" ? "ক্যাটাগরি সমূহ" : "Categories" }}
-                </div>
-
-                <!-- Category Grid -->
-                <div
-                  v-if="categories && categories.length > 0"
-                  class="grid grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-1"
-                >
-                  <router-link
-                    v-for="category in categories"
-                    :key="category.id"
-                    :to="`/products-list?category=${category.id}`"
-                    class="flex items-center gap-3 p-2 rounded-xl hover:bg-primary/5 hover:text-primary transition-all group border border-gray-50 hover:border-primary/10"
-                    @click="megaMenuOpen = false"
-                  >
-                    <div
-                      class="w-8 h-8 rounded-full bg-primary/5 flex items-center justify-center shrink-0 group-hover:bg-primary group-hover:text-white transition-all"
-                    >
-                      <CategoryIcon
-                        :name="category.name"
-                        :icon="category.icon"
-                        class="w-4 h-4 text-primary group-hover:text-white transition-colors"
-                      />
-                    </div>
-                    <div class="flex-1 min-w-0">
-                      <h4
-                        class="text-xs font-semibold truncate text-gray-700 group-hover:text-primary transition-colors"
-                      >
-                        {{ category.name }}
-                      </h4>
-                      <p class="text-[10px] text-gray-400 mt-0.5 truncate">
-                        {{
-                          (category.dealCount || 0) +
-                          (category.couponCount || 0)
-                        }}
-                        {{ t("total_offers") }}
-                      </p>
-                    </div>
-                  </router-link>
-                </div>
-
-                <div v-else class="py-6 text-center text-xs text-gray-400">
-                  {{
-                    locale === "bn"
-                      ? "কোনো ক্যাটাগরি পাওয়া যায়নি"
-                      : "No categories found"
-                  }}
-                </div>
-
-                <!-- Footer Action -->
-                <div class="mt-4 pt-3 border-t text-center">
-                  <router-link
-                    to="/categories"
-                    class="text-xs font-bold text-primary hover:underline inline-flex items-center gap-1"
-                    @click="megaMenuOpen = false"
-                  >
-                    {{
-                      locale === "bn"
-                        ? "সব ক্যাটাগরি দেখুন"
-                        : "View All Categories"
-                    }}
-                    →
-                  </router-link>
-                </div>
-              </div>
-            </transition>
-          </div>
-
-          <router-link
-            to="/products-list"
-            class="hover:bg-white/10 px-3 h-full flex items-center text-sm font-semibold transition-colors"
-          >
-            {{ locale === "bn" ? "সকল পণ্য" : "All Products" }}
-          </router-link>
-          <router-link
-            to="/deals"
-            class="hover:bg-white/10 px-3 h-full flex items-center text-sm font-semibold transition-colors"
-          >
-            {{ locale === "bn" ? "সকল অফার" : "All Offers" }}
-          </router-link>
-          <router-link
-            to="/products-list?free_delivery=true"
-            class="hover:bg-white/10 px-3 h-full flex items-center text-sm font-semibold transition-colors"
-          >
-            {{ locale === "bn" ? "ফ্রি ডেলিভারি" : "Free Delivery" }}
-          </router-link>
-          <router-link
-            to="/brands"
-            class="hover:bg-white/10 px-3 h-full flex items-center text-sm font-semibold transition-colors"
-          >
-            {{ locale === "bn" ? "সকল ব্র্যান্ড" : "All Brands" }}
-          </router-link>
-          <router-link
-            to="/contact"
-            class="hover:bg-white/10 px-3 h-full flex items-center text-sm font-semibold transition-colors"
-          >
-            {{ t("contact") }}
-          </router-link>
-
-          <!-- Account Dropdown -->
-          <div
-            class="relative h-full flex items-center group cursor-pointer"
-            @mouseenter="accountMenuOpen = true"
-            @mouseleave="accountMenuOpen = false"
-          >
-            <span
-              class="hover:bg-white/10 px-3 h-full flex items-center text-sm font-semibold transition-colors gap-1"
-            >
-              {{ isAuthenticated ? (user?.name ?? "অ্যাকাউন্ট") : (locale === "bn" ? "অ্যাকাউন্ট" : "Account") }}
-              <ChevronDown class="w-3.5 h-3.5" />
-            </span>
-            <transition name="fade">
-              <div
-                v-show="accountMenuOpen"
-                class="absolute left-0 mt-0 top-full bg-white border border-gray-200 shadow-lg rounded-b-xl py-2 w-40 z-50 text-gray-800 text-left"
-              >
-                <template v-if="isAuthenticated">
-                  <router-link
-                    to="/dashboard"
-                    class="block w-full text-left px-4 py-2 text-xs font-semibold hover:bg-gray-100 hover:text-primary transition-colors cursor-pointer"
-                  >
-                    {{ locale === "bn" ? "ড্যাশবোর্ড" : "Dashboard" }}
-                  </router-link>
-                  <button
-                    @click="logout"
-                    class="w-full text-left px-4 py-2 text-xs font-semibold hover:bg-gray-100 hover:text-primary transition-colors cursor-pointer border-t border-gray-100"
-                  >
-                    {{ locale === "bn" ? "লগআউট" : "Logout" }}
-                  </button>
-                </template>
-                <template v-else>
-                  <button
-                    @click="openAuth('login')"
-                    class="w-full text-left px-4 py-2 text-xs font-semibold hover:bg-gray-100 hover:text-primary transition-colors cursor-pointer"
-                  >
-                    {{ locale === "bn" ? "লগইন" : "Login" }}
-                  </button>
-                  <button
-                    @click="openAuth('register')"
-                    class="w-full text-left px-4 py-2 text-xs font-semibold hover:bg-gray-100 hover:text-primary transition-colors cursor-pointer"
-                  >
-                    {{ locale === "bn" ? "সাইন আপ" : "Sign Up" }}
-                  </button>
-                </template>
-              </div>
-            </transition>
-          </div>
-
-          <button
-            @click="handleContactClick"
-            class="hover:bg-white/10 px-3 h-full flex items-center text-sm font-semibold transition-colors cursor-pointer"
-          >
-            {{ locale === "bn" ? "যোগাযোগ" : "Contact" }}
-          </button>
+        <nav class="rp-desktop-links" aria-label="Primary navigation">
+          <router-link to="/" exact-active-class="is-active">{{ locale === "bn" ? "হোম" : "Home" }}</router-link>
+          <router-link to="/products-list">{{ locale === "bn" ? "শপ" : "Shop" }}</router-link>
+          <router-link to="/products-list">{{ locale === "bn" ? "পণ্য" : "Products" }}</router-link>
+          <router-link to="/categories">{{ locale === "bn" ? "পেজ" : "Pages" }}</router-link>
+          <router-link to="/deals">{{ locale === "bn" ? "অফার" : "Deals" }}</router-link>
+          <router-link to="/contact">{{ locale === "bn" ? "যোগাযোগ" : "Contact" }}</router-link>
         </nav>
 
-        <!-- Language Switcher button -->
-        <button
-          @click="toggleLocale"
-          class="px-3 py-1 text-xs font-bold bg-white/20 text-white hover:bg-white/35 border border-white/25 rounded-md transition-colors cursor-pointer"
-        >
-          {{ locale === "bn" ? "English" : "বাংলা" }}
-        </button>
-      </div>
-    </div>
-  </header>
-
-  <!-- Responsive Mobile Header Layout -->
-  <header
-    class="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm md:hidden"
-  >
-    <div
-      class="max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between"
-    >
-      <!-- Left: Menu & Logo/Name -->
-      <div class="flex items-center gap-3">
-        <!-- Menu Toggle -->
-        <button @click="menuOpen = true" :aria-label="locale === 'bn' ? 'মেনু খুলুন' : 'Open menu'" class="min-w-11 min-h-11 text-gray-600 cursor-pointer flex items-center justify-center">
-          <Menu class="w-6 h-6" />
-        </button>
-
-        <!-- Logo -->
-        <router-link
-          to="/"
-          class="flex items-center gap-2"
-        >
-          <img
-            v-if="headerLogo && !logoError"
-            :src="headerLogo"
-            alt="Logo"
-            class="h-9 w-auto object-contain"
-            @error="logoError = true"
-          />
-          <span v-else class="text-base font-bold text-primary">{{ appName || 'RizikPoint' }}</span>
-         
-        </router-link>
+        <div class="rp-nav-actions">
+          <button type="button" aria-label="Search" @click="toggleSearch"><Search /></button>
+          <button type="button" aria-label="Account" @click="openAccount"><User /></button>
+          <button type="button" aria-label="Wishlist" @click="showWishlistNotice"><Heart /></button>
+          <button type="button" aria-label="Cart" class="rp-cart-action" @click="openCart"><ShoppingCart /><span v-if="totalItems" class="rp-cart-count">{{ totalItems > 9 ? "9+" : totalItems }}</span></button>
+          <span class="rp-cart-total">৳{{ Number(subtotal || 0).toFixed(2) }} <span aria-hidden="true">⌄</span></span>
+          <button type="button" class="rp-lang" @click="toggleLocale">{{ locale === "bn" ? "EN" : "বাং" }}</button>
+        </div>
       </div>
 
-      <!-- Right: Cart and Search Actions -->
-      <div class="flex items-center gap-2 shrink-0">
-        <!-- Language Switcher Button -->
-        <button
-          @click="toggleLocale"
-          class="px-2 py-1 text-xs font-bold bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 rounded-md transition-colors cursor-pointer"
-        >
-          {{ locale === "bn" ? "EN" : "বাং" }}
-        </button>
-
-        <button
-          @click="searchOpen = !searchOpen"
-          class="p-1.5 text-gray-600 hover:text-primary cursor-pointer"
-        >
-          <Search class="w-5 h-5" />
-        </button>
-        <button
-          @click="openCart"
-          class="relative p-1.5 text-gray-600 hover:text-primary cursor-pointer"
-        >
-          <ShoppingCart class="w-5 h-5" />
-          <span
-            v-if="totalItems > 0"
-            class="absolute -top-0.5 -right-0.5 w-4 h-4 bg-primary text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse"
-          >
-            {{ totalItems > 9 ? "9+" : totalItems }}
-          </span>
-        </button>
-      </div>
-    </div>
-
-    <!-- Mobile Search Input Bar (with live suggestions) -->
-    <transition name="slide-down">
-      <div
-        v-if="searchOpen"
-        class="max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8 pb-3 relative"
-        ref="searchContainerRef"
-      >
-        <form @submit.prevent="handleSearchSubmit" class="relative">
-          <Search
-            class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 z-10"
-          />
-          <input
-            type="search"
-            v-model="searchQuery"
-            v-focus
-            @input="onSearchInput"
-            @focus="searchQuery.trim() && (suggestionsOpen = true)"
-            :placeholder="t('search_placeholder')"
-            class="w-full h-10 pl-9 pr-4 rounded-full border border-gray-300 focus:border-primary focus:ring-1 focus:ring-primary outline-none text-sm bg-white"
-            autocomplete="off"
-          />
-          <Loader2
-            v-if="isSearching"
-            class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-primary animate-spin"
-          />
+      <div v-if="searchOpen" class="rp-search-row rp-search-wrap">
+        <form class="rp-search-form" @submit.prevent="submitSearch">
+          <Search aria-hidden="true" />
+          <label for="desktop-search" class="sr-only">Search products</label>
+          <input id="desktop-search" ref="searchInputRef" v-model="searchQuery" v-focus type="search" :placeholder="locale === 'bn' ? 'পণ্য খুঁজুন...' : 'Search products...'" autocomplete="off" @input="onSearchInput" @focus="searchQuery.trim() && (suggestionsOpen = true)" />
+          <Loader2 v-if="isSearching" class="animate-spin" aria-hidden="true" />
         </form>
+        <div v-if="suggestionsOpen" class="rp-search-results">
+          <div v-if="isSearching && !suggestions.length" class="rp-search-empty">{{ locale === "bn" ? "খোঁজা হচ্ছে..." : "Searching..." }}</div>
+          <div v-else-if="!suggestions.length" class="rp-search-empty">{{ locale === "bn" ? "কোনো পণ্য পাওয়া যায়নি" : "No products found" }}</div>
+          <button v-for="product in suggestions" v-else :key="product.id" type="button" class="rp-search-result" @mousedown.prevent="pickSuggestion(product)"><span>{{ product.title }}</span><small>৳{{ product.discountedPrice }}</small></button>
+        </div>
+      </div>
+    </header>
 
-        <!-- Mobile suggestions -->
-        <transition name="fade">
-          <div
-            v-if="suggestionsOpen && (suggestions.length > 0 || isSearching || searchQuery.trim())"
-            class="absolute left-4 right-4 top-full mt-2 bg-white border border-gray-100 rounded-2xl shadow-2xl z-50 overflow-hidden"
-          >
-            <div v-if="isSearching && suggestions.length === 0" class="px-4 py-6 text-center text-xs text-gray-500">
-              <Loader2 class="w-4 h-4 animate-spin inline mr-2" />
-              {{ locale === "bn" ? "খোঁজা হচ্ছে..." : "Searching..." }}
-            </div>
-            <div
-              v-else-if="suggestions.length === 0 && searchQuery.trim()"
-              class="px-4 py-6 text-center text-xs text-gray-500"
-            >
-              {{ locale === "bn" ? "কোনো পণ্য পাওয়া যায়নি" : "No products found" }}
-            </div>
-            <ul v-else class="max-h-80 overflow-y-auto py-1">
-              <li
-                v-for="p in suggestions"
-                :key="p.id"
-                @mousedown.prevent="pickSuggestion(p)"
-                class="flex items-center gap-3 px-3 py-2 mx-1 rounded-xl hover:bg-primary/5 cursor-pointer transition-colors"
-              >
-                <img
-                  v-if="p.imageUrl"
-                  :src="p.imageUrl"
-                  :alt="p.title"
-                  class="w-9 h-9 rounded-lg object-cover bg-gray-100 shrink-0"
-                />
-                <div
-                  v-else
-                  class="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0"
-                >
-                  <Package class="w-4 h-4 text-primary" />
-                </div>
-                <div class="flex-1 min-w-0">
-                  <div class="text-xs font-bold text-gray-800 line-clamp-2 break-words">{{ p.title }}</div>
-                </div>
-                <div v-if="p.discountedPrice" class="text-xs font-extrabold text-primary shrink-0">
-                  ৳{{ p.discountedPrice }}
-                </div>
-              </li>
-            </ul>
-            <div
-              v-if="suggestions.length > 0"
-              class="border-t border-gray-100 px-4 py-2.5 text-center bg-gray-50/60"
-            >
-              <button
-                type="button"
-                @mousedown.prevent="handleSearchSubmit"
-                class="text-[11px] font-extrabold text-primary hover:underline cursor-pointer"
-              >
-                {{ locale === "bn"
-                    ? `“${searchQuery}” এর জন্য সব ফলাফল দেখুন`
-                    : `See all results for “${searchQuery}”`
-                }} →
-              </button>
-            </div>
-          </div>
-        </transition>
+    <header class="rp-mobile-header">
+      <button type="button" aria-label="Open menu" @click="menuOpen = true"><Menu /></button>
+      <router-link to="/" class="rp-mobile-brand"><span class="rp-brand-mark" aria-hidden="true"></span><span><b>Rizik Point</b><small>Ready to Cook</small></span></router-link>
+      <div><button type="button" aria-label="Search" @click="toggleSearch"><Search /></button><button type="button" aria-label="Cart" class="rp-cart-action" @click="openCart"><ShoppingCart /><span v-if="totalItems" class="rp-cart-count">{{ totalItems }}</span></button></div>
+      <div v-if="searchOpen" class="rp-mobile-search rp-search-wrap"><form class="rp-search-form" @submit.prevent="submitSearch"><Search aria-hidden="true" /><input ref="mobileSearchInputRef" v-focus v-model="searchQuery" type="search" :placeholder="locale === 'bn' ? 'পণ্য খুঁজুন...' : 'Search products...'" @input="onSearchInput" /></form></div>
+    </header>
+
+    <transition name="fade">
+      <div v-if="menuOpen" class="rp-drawer-layer" @click.self="menuOpen = false">
+        <aside class="rp-drawer">
+          <div class="rp-drawer-head"><router-link to="/" class="rp-mobile-brand" @click="menuOpen = false"><span class="rp-brand-mark" aria-hidden="true"></span><span><b>Rizik Point</b><small>Ready to Cook</small></span></router-link><button type="button" aria-label="Close menu" @click="menuOpen = false"><X /></button></div>
+          <nav class="rp-drawer-links">
+            <router-link to="/" @click="menuOpen = false">{{ locale === "bn" ? "হোম" : "Home" }}</router-link>
+            <router-link to="/categories" @click="menuOpen = false">{{ locale === "bn" ? "ক্যাটাগরি" : "Categories" }}</router-link>
+            <router-link to="/products-list" @click="menuOpen = false">{{ locale === "bn" ? "সব পণ্য" : "All Products" }}</router-link>
+            <router-link to="/deals" @click="menuOpen = false">{{ locale === "bn" ? "অফার" : "Deals" }}</router-link>
+            <router-link to="/contact" @click="menuOpen = false">{{ locale === "bn" ? "যোগাযোগ" : "Contact" }}</router-link>
+            <button v-if="isAuthenticated" type="button" @click="logout(); menuOpen = false"><User /> {{ locale === "bn" ? "লগআউট" : "Logout" }}</button>
+            <button v-else type="button" @click="openAuth('login'); menuOpen = false"><User /> {{ locale === "bn" ? "লগইন" : "Login" }}</button>
+          </nav>
+        </aside>
       </div>
     </transition>
-  </header>
-
-  <!-- Mobile Sidebar Menu Drawer -->
-  <transition name="fade">
-    <div v-if="menuOpen" class="fixed inset-0 z-50 flex">
-      <!-- Backdrop -->
-      <div class="absolute inset-0 bg-black/40" @click="menuOpen = false" />
-
-      <!-- Drawer Content -->
-      <div
-        class="relative w-64 bg-white h-full shadow-xl flex flex-col z-10 transition-transform duration-300 overflow-hidden"
-      >
-        <div class="flex items-center justify-between p-4 border-b">
-          <div class="flex items-center gap-2">
-            <img
-              v-if="headerLogo && !logoError"
-              :src="headerLogo"
-              alt="Logo"
-              class="h-9 w-auto object-contain"
-              @error="logoError = true"
-            />
-            
-          </div>
-          <button @click="menuOpen = false" class="p-1 cursor-pointer">
-            <X class="w-5 h-5 text-gray-600" />
-          </button>
-        </div>
-
-        <nav class="flex flex-col p-4 gap-1 overflow-y-auto flex-1 min-h-0">
-<!-- Expandable Categories -->
-          <div>
-            <button
-              @click="toggleCategories"
-              class="flex w-full items-center gap-3 px-3 py-3 rounded-lg hover:bg-primary/10 hover:text-primary text-gray-700 font-medium cursor-pointer text-left text-sm"
-            >
-              <Menu class="w-5 h-5" />
-              <span class="flex-1">{{ t("categories") }}</span>
-              <Loader2 v-if="loadingSubCategories" class="w-4 h-4 animate-spin text-primary" />
-              <ChevronDown v-else class="w-4 h-4 transition-transform" :class="categoriesExpanded ? 'rotate-180' : ''" />
-            </button>
-            <transition name="drawer-sub">
-              <div v-if="categoriesExpanded" class="pl-9 pr-2 pb-2 space-y-0.5 drawer-sub-list">
-                <router-link
-                  to="/categories"
-                  @click="menuOpen = false"
-                  class="flex items-center justify-between gap-2 px-3 py-2 rounded-md text-xs font-semibold text-primary hover:bg-primary/10 transition-colors"
-                >
-                  <span>{{ t("all_categories") }}</span>
-                  <ChevronRight class="w-3.5 h-3.5" />
-                </router-link>
-                <div v-if="loadingSubCategories && subCategories.length === 0" class="px-3 py-3 text-xs text-gray-400 text-center">
-                  <Loader2 class="w-4 h-4 animate-spin mx-auto" />
-                </div>
-                <router-link
-                  v-for="cat in subCategories"
-                  :key="cat.id"
-                  :to="`/products-list?category=${cat.id}`"
-                  @click="menuOpen = false"
-                  class="flex items-center justify-between gap-2 px-3 py-2 rounded-md text-xs text-gray-600 hover:bg-primary/5 hover:text-primary transition-colors"
-                >
-                  <span class="truncate">{{ cat.name }}</span>
-                  <ChevronRight class="w-3 h-3 opacity-50" />
-                </router-link>
-                <p
-                  v-if="!loadingSubCategories && subCategories.length === 0"
-                  class="px-3 py-2 text-xs text-gray-400"
-                >
-                  {{ locale === "bn" ? "কোনো সাব-ক্যাটাগরি নেই" : "No sub-categories" }}
-                </p>
-              </div>
-            </transition>
-          </div>
-          <router-link
-            to="/brands"
-            @click="menuOpen = false"
-            class="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-primary/10 hover:text-primary text-gray-700 font-medium"
-          >
-            <Sparkles class="w-5 h-5" />
-            {{ locale === "bn" ? "ব্র্যান্ড সমূহ" : "Brands" }}
-          </router-link>
-          
-          <router-link
-            to="/coupons"
-            @click="menuOpen = false"
-            class="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-primary/10 hover:text-primary text-gray-700 font-medium"
-          >
-            <Tag class="w-5 h-5" /> {{ t("coupons") }}
-          </router-link>
-          <router-link
-            to="/contact"
-            @click="menuOpen = false"
-            class="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-primary/10 hover:text-primary text-gray-700 font-medium"
-          >
-            <Phone class="w-5 h-5" /> {{ t("contact") }}
-          </router-link>
-          <!-- Account options for mobile -->
-          <hr class="my-2 border-gray-100" />
-          <template v-if="isAuthenticated">
-            <div class="px-3 py-2 text-xs font-semibold text-gray-400">
-              {{ locale === "bn" ? "অ্যাকাউন্ট: " : "Account: " }}{{ user?.name }}
-            </div>
-            <router-link
-              to="/dashboard"
-              @click="menuOpen = false"
-              class="flex w-full items-center gap-3 px-3 py-2.5 rounded-lg bg-gradient-to-r from-primary/10 to-emerald-50 hover:from-primary/20 hover:to-emerald-100 text-primary font-semibold cursor-pointer text-left text-sm border border-primary/20 transition-colors"
-            >
-              <LayoutDashboard class="w-5 h-5" />
-              <span class="flex-1">{{ locale === "bn" ? "ড্যাশবোর্ড" : "Dashboard" }}</span>
-              <ChevronRight class="w-4 h-4 opacity-60" />
-            </router-link>
-            <button
-              @click="logout(); menuOpen = false"
-              class="flex w-full items-center gap-3 px-3 py-3 rounded-lg hover:bg-red-50 hover:text-red-650 text-gray-700 font-medium cursor-pointer text-left text-sm"
-            >
-              <User class="w-5 h-5" /> {{ locale === "bn" ? "লগআউট" : "Logout" }}
-            </button>
-          </template>
-          <template v-else>
-            <button
-              @click="openAuth('login'); menuOpen = false"
-              class="flex w-full items-center gap-3 px-3 py-3 rounded-lg hover:bg-primary/10 hover:text-primary text-gray-700 font-medium cursor-pointer text-left text-sm"
-            >
-              <User class="w-5 h-5" /> {{ locale === "bn" ? "লগইন" : "Login" }}
-            </button>
-            <button
-              @click="openAuth('register'); menuOpen = false"
-              class="flex w-full items-center gap-3 px-3 py-3 rounded-lg hover:bg-primary/10 hover:text-primary text-gray-700 font-medium cursor-pointer text-left text-sm"
-            >
-              <Sparkles class="w-5 h-5" /> {{ locale === "bn" ? "নিবন্ধন" : "Register" }}
-            </button>
-          </template>
-        </nav>
-
-        <div class="mt-auto p-4 border-t bg-gray-50">
-          <div class="flex items-center gap-2 text-sm text-gray-600">
-            <Phone class="w-4 h-4 text-primary" />
-            <span>{{ helplineNumber }}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </transition>
-
-  <!-- Floating Green Cart Badge matching user mockup -->
-  <div
-    @click="openCart"
-    class="fixed right-0 top-1/2 -translate-y-1/2 bg-primary hover:bg-primary/90 text-white p-3 rounded-l-2xl shadow-xl z-40 flex flex-col items-center gap-1.5 cursor-pointer transition-all duration-300 border-l border-y border-white/20 select-none group"
-  >
-    <div class="relative">
-      <ShoppingCart
-        class="w-5 h-5 group-hover:scale-110 transition-transform"
-      />
-      <span
-        class="absolute -top-2 -right-2 bg-yellow-400 text-gray-900 text-[9px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center shadow-xs"
-      >
-        {{ totalItems }}
-      </span>
-    </div>
-    <span
-      class="text-[9px] font-bold tracking-tight text-center whitespace-nowrap leading-none"
-    >
-      {{ totalItems }} Items
-    </span>
-    <span
-      class="text-[8px] font-extrabold bg-white/20 px-1 py-0.5 rounded leading-none font-mono"
-    >
-      {{ subtotal }} TK
-    </span>
-  </div>
   </div>
 </template>
 
-<script>
-// Custom directive to focus input on mount
-const vFocus = {
-  mounted: (el) => el.focus(),
-};
-export default {
-  directives: {
-    focus: vFocus,
-  },
-};
-</script>
-
 <style scoped>
-.slide-down-enter-active,
-.slide-down-leave-active {
-  transition: all 0.25s ease-out;
+.rp-navbar { position: relative; z-index: 40; background: #fff; font-family: var(--app-font-sans); }
+.rp-nav-container { width: min(1180px, calc(100% - 44px)); margin-inline: auto; }
+.rp-topbar { color: #fff; background: #075d32; font-size: 11px; }
+.rp-topbar .rp-nav-container { min-height: 34px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.rp-topbar span { display: inline-flex; align-items: center; gap: 7px; opacity: .96; }
+.rp-topbar svg { width: 13px; height: 13px; }
+.rp-topbar i { opacity: .55; font-style: normal; }
+.rp-topbar strong { font-size: 11px; }
+.rp-header { position: sticky; top: 0; background: #fff; box-shadow: 0 1px 0 rgba(0,0,0,.06); }
+.rp-nav-row { min-height: 82px; display: grid; grid-template-columns: 220px 1fr auto; align-items: center; gap: 20px; }
+.rp-brand, .rp-mobile-brand { display: inline-flex; align-items: center; gap: 9px; color: #075d32; white-space: nowrap; }
+.rp-brand img { width: 150px; max-height: 58px; object-fit: contain; }
+.rp-brand > span:last-child, .rp-mobile-brand > span:last-child { display: flex; flex-direction: column; }
+.rp-brand b, .rp-mobile-brand b { font-size: 20px; line-height: 1; font-weight: 800; letter-spacing: -.8px; }
+.rp-brand small, .rp-mobile-brand small { color: #f56a1d; margin-top: 4px; font-size: 10px; line-height: 1; font-weight: 800; }
+.rp-brand-mark { width: 33px; height: 33px; position: relative; display: inline-block; border: 3px solid #075d32; border-top: 0; border-right: 0; border-radius: 0 0 0 11px; transform: rotate(-8deg); }
+.rp-brand-mark::before { content: ""; position: absolute; right: -4px; top: -8px; width: 16px; height: 9px; border-radius: 18px 18px 0 18px; background: #f56a1d; transform: rotate(-28deg); }
+.rp-desktop-links { display: flex; align-items: center; justify-content: center; gap: clamp(16px, 2.4vw, 34px); }
+.rp-desktop-links a { position: relative; padding: 31px 0; color: #242925; font-size: 12px; font-weight: 700; }
+.rp-desktop-links a:hover, .rp-desktop-links a.is-active { color: #075d32; }
+.rp-desktop-links a.is-active::after { content: ""; position: absolute; left: 50%; bottom: 21px; width: 27px; height: 2px; background: #111; transform: translateX(-50%); }
+.rp-nav-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
+.rp-nav-actions > button:not(.rp-lang) { width: 34px; height: 34px; display: grid; place-items: center; border: 0; color: #171b18; background: transparent; cursor: pointer; }
+.rp-nav-actions > button:hover { color: #075d32; }
+.rp-nav-actions svg { width: 19px; height: 19px; stroke-width: 1.8; }
+.rp-cart-action { position: relative; }
+.rp-cart-count { position: absolute; right: -1px; top: -1px; min-width: 16px; height: 16px; padding-inline: 3px; display: grid; place-items: center; border-radius: 50%; color: #fff; background: #111; font-size: 9px; font-weight: 800; }
+.rp-cart-total { color: #303632; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.rp-lang { padding: 5px 7px; border: 1px solid #dce4de; border-radius: 5px; color: #075d32; background: #f5faf5; font-size: 10px; font-weight: 800; cursor: pointer; }
+.rp-search-row { position: absolute; left: 50%; top: calc(100% + 8px); width: min(500px, calc(100% - 40px)); transform: translateX(-50%); z-index: 50; }
+.rp-search-form { min-height: 45px; display: flex; align-items: center; gap: 10px; padding: 0 14px; border: 1px solid #dfe6df; border-radius: 8px; background: #fff; box-shadow: 0 12px 35px rgba(0,0,0,.12); }
+.rp-search-form svg { width: 17px; color: #69736d; flex: 0 0 auto; }
+.rp-search-form input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; color: #111; font-size: 13px; }
+.rp-search-results { margin-top: 6px; overflow: hidden; border: 1px solid #e5ebe5; border-radius: 8px; background: #fff; box-shadow: 0 12px 35px rgba(0,0,0,.12); }
+.rp-search-result { width: 100%; padding: 11px 14px; display: flex; justify-content: space-between; gap: 12px; border: 0; border-bottom: 1px solid #f0f3f0; background: #fff; color: #242925; text-align: left; font-size: 12px; cursor: pointer; }
+.rp-search-result:hover { background: #f5faf5; color: #075d32; }
+.rp-search-result small { color: #075d32; font-weight: 800; }
+.rp-search-empty { padding: 18px; color: #69736d; text-align: center; font-size: 12px; }
+.rp-mobile-header { display: none; }
+.rp-drawer-layer { position: fixed; inset: 0; z-index: 70; background: rgba(0,0,0,.42); }
+.rp-drawer { width: min(320px, 86vw); height: 100%; padding: 18px; background: #fff; box-shadow: 10px 0 30px rgba(0,0,0,.16); }
+.rp-drawer-head { display: flex; align-items: center; justify-content: space-between; padding-bottom: 18px; border-bottom: 1px solid #edf1ed; }
+.rp-drawer-head button { border: 0; background: transparent; cursor: pointer; }
+.rp-drawer-links { display: flex; flex-direction: column; gap: 4px; padding-top: 18px; }
+.rp-drawer-links a, .rp-drawer-links button { display: flex; align-items: center; gap: 10px; padding: 13px 10px; border: 0; border-radius: 6px; background: transparent; color: #26312b; font-size: 14px; font-weight: 700; text-align: left; cursor: pointer; }
+.rp-drawer-links a:hover, .rp-drawer-links button:hover { color: #075d32; background: #edf7ee; }
+.rp-drawer-links svg { width: 17px; }
+@media (max-width: 1050px) { .rp-nav-row { grid-template-columns: 190px 1fr auto; } .rp-desktop-links { gap: 14px; } .rp-desktop-links a { font-size: 11px; } .rp-cart-total { display: none; } }
+@media (max-width: 767px) {
+  .rp-topbar .rp-nav-container { min-height: 32px; justify-content: center; }
+  .rp-topbar .rp-nav-container > strong { display: none; }
+  .rp-topbar span { font-size: 10px; }
+  .rp-topbar span i { display: none; }
+  .rp-header { display: none; }
+  .rp-mobile-header { min-height: 62px; padding: 0 14px; position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #edf1ed; background: #fff; box-shadow: 0 1px 5px rgba(0,0,0,.04); }
+  .rp-mobile-header > button, .rp-mobile-header > div > button { width: 38px; height: 38px; display: grid; place-items: center; border: 0; background: transparent; color: #26312b; cursor: pointer; }
+  .rp-mobile-header > button svg, .rp-mobile-header > div > button svg { width: 20px; }
+  .rp-mobile-header > div { display: flex; gap: 2px; }
+  .rp-mobile-brand b { font-size: 16px; }
+  .rp-mobile-brand small { font-size: 8px; }
+  .rp-mobile-brand .rp-brand-mark { width: 28px; height: 28px; }
+  .rp-mobile-search { position: absolute; left: 14px; right: 14px; top: calc(100% + 8px); z-index: 60; }
+  .rp-mobile-search .rp-search-form { box-shadow: 0 8px 25px rgba(0,0,0,.14); }
 }
-.slide-down-enter-from,
-.slide-down-leave-to {
-  opacity: 0;
-  transform: translateY(-10px);
-}
-
-.drawer-sub-enter-active,
-.drawer-sub-leave-active {
-  transition: opacity 0.2s ease;
-}
-.drawer-sub-enter-from,
-.drawer-sub-leave-to {
-  opacity: 0;
-}
-.drawer-sub-list {
-  max-height: 50vh;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-.drawer-sub-list::-webkit-scrollbar {
-  width: 4px;
-}
-.drawer-sub-list::-webkit-scrollbar-thumb {
-  background: rgba(16, 185, 129, 0.4);
-  border-radius: 2px;
-}
-
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
+@media (max-width: 420px) { .rp-topbar span { max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; } }
 </style>
-

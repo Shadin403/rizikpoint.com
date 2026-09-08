@@ -24,7 +24,7 @@ const isSaving  = ref(false);
 // Modal state
 const showModal  = ref(false);
 const editTarget = ref(null); // null = create, slider object = edit
-const form = ref({ title: "", link: "/products-list", published: 1 });
+const form = ref({ title: "", link: "/products-list", type: "main", description: "", buttonText: "", badge: "", published: 1 });
 const photoFile   = ref(null);
 const photoPreview = ref(null);
 const confirmDeleteId = ref(null);
@@ -43,7 +43,7 @@ onMounted(load);
 // ── Modal helpers ─────────────────────────────────────────────────────────────
 function openCreate() {
   editTarget.value = null;
-  form.value = { title: "", link: "/products-list", published: 1 };
+  form.value = { title: "", link: "/products-list", type: "main", description: "", buttonText: "", badge: "", published: 1 };
   photoFile.value = null;
   photoPreview.value = null;
   showModal.value = true;
@@ -51,7 +51,7 @@ function openCreate() {
 
 function openEdit(slider) {
   editTarget.value = slider;
-  form.value = { title: slider.title, link: slider.link, published: slider.published };
+  form.value = { title: slider.title, link: slider.link, type: slider.type || "main", description: slider.description || "", buttonText: slider.buttonText || "", badge: slider.badge || "", published: slider.published };
   photoFile.value = null;
   photoPreview.value = slider.image || null;
   showModal.value = true;
@@ -83,6 +83,10 @@ async function save() {
     const fd = new FormData();
     fd.append("title",     form.value.title);
     fd.append("link",      form.value.link);
+    fd.append("type",      form.value.type);
+    fd.append("description", form.value.description);
+    fd.append("button_text", form.value.buttonText);
+    fd.append("badge", form.value.badge);
     fd.append("published", form.value.published);
     if (photoFile.value) fd.append("photo", photoFile.value);
 
@@ -141,9 +145,9 @@ async function toggle(slider) {
     <div class="flex items-center justify-between mb-6">
       <div>
         <h1 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <ImageIcon class="w-6 h-6 text-indigo-500" /> Sliders
+          <ImageIcon class="w-6 h-6 text-indigo-500" /> Sliders & Mini Banners
         </h1>
-        <p class="text-sm text-gray-500 mt-0.5">Manage hero banner sliders displayed on the homepage.</p>
+        <p class="text-sm text-gray-500 mt-0.5">Manage hero banners and the two mini promo banners shown below homepage products.</p>
       </div>
       <button
         @click="openCreate"
@@ -193,6 +197,9 @@ async function toggle(slider) {
             class="absolute top-2 right-2 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
           >
             {{ slider.published ? "Live" : "Draft" }}
+          </span>
+          <span class="absolute top-2 left-2 bg-black/65 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+            {{ slider.type || "main" }}
           </span>
         </div>
 
@@ -301,6 +308,37 @@ async function toggle(slider) {
                   placeholder="e.g. Summer Sale 2026"
                   class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
                 />
+              </div>
+
+              <!-- Placement -->
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Placement</label>
+                <select
+                  v-model="form.type"
+                  class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition bg-white"
+                >
+                  <option value="main">Main hero banner</option>
+                  <option value="mini">Mini banner (promo section)</option>
+                  <option value="side">Side banner (promo section)</option>
+                </select>
+                <p class="text-[10px] text-gray-400 mt-1">Use Mini/Side for the two banners shown below the products.</p>
+              </div>
+
+              <!-- Optional copy -->
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Description</label>
+                <textarea v-model="form.description" rows="2" placeholder="Optional banner description" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"></textarea>
+              </div>
+
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-semibold text-gray-600 mb-1.5">Button text</label>
+                  <input v-model="form.buttonText" type="text" placeholder="Shop Now" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition" />
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-gray-600 mb-1.5">Badge</label>
+                  <input v-model="form.badge" type="text" placeholder="Special Offer" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition" />
+                </div>
               </div>
 
               <!-- Link -->
