@@ -124,7 +124,7 @@ const vFocus = { mounted: (el) => el.focus() };
   <div class="rp-navbar">
     <div class="rp-topbar">
       <div class="rp-nav-container">
-        <span><ShoppingCart aria-hidden="true" /> {{ locale === "bn" ? "৳১০০০-এর বেশি অর্ডারে ফ্রি ডেলিভারি" : "Free Home Delivery on Orders Over ৳1000" }} <i>•</i> {{ locale === "bn" ? "টাটকা কাট" : "Fresh Cut" }} <i>•</i> {{ locale === "bn" ? "স্বাস্থ্যসম্মত" : "Hygienic" }} <i>•</i> {{ locale === "bn" ? "সময় বাঁচান" : "Save Time" }}</span>
+        <span><ShoppingCart aria-hidden="true" /> {{ locale === "bn" ? "TK 1000-এর বেশি অর্ডারে ফ্রি হোম ডেলিভারি" : "Free Home Delivery on Orders Over TK 1000" }} <i>•</i> {{ locale === "bn" ? "টাটকা ও মানসম্মত" : "Fresh Cut & Hygienic" }} <i>•</i> {{ locale === "bn" ? "সময় বাঁচান" : "Save Time" }}</span>
         <strong>{{ locale === "bn" ? "এখনই অর্ডার করুন" : "Order Now" }} <span aria-hidden="true">→</span></strong>
       </div>
     </div>

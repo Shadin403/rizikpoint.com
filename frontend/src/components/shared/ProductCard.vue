@@ -71,6 +71,13 @@ const savings = computed(() => {
   return null;
 });
 
+const displayCategoryName = computed(() => {
+  if (props.deal?.categoryName) return props.deal.categoryName;
+  if (props.deal?.category?.name) return props.deal.category.name;
+  if (typeof props.deal?.category === 'string') return props.deal.category;
+  return 'GROCERY';
+});
+
 // Unit / Weight Text (e.g. 500g, EACH, KG)
 const unitText = computed(() => {
   if (props.deal?.unit) return props.deal.unit;
@@ -167,9 +174,9 @@ function handleDecrease() {
         </h3>
       </router-link>
 
-      <!-- Unit / Weight / Quantity info -->
-      <div class="text-[11px] font-normal text-gray-500 uppercase tracking-wide mt-1.5 mb-1">
-        {{ unitText }}
+      <!-- Category Name info -->
+      <div class="text-[11px] font-normal text-gray-500 uppercase tracking-wide mt-1.5 mb-1 line-clamp-1">
+        {{ displayCategoryName }}
       </div>
 
       <!-- Rating (optional) -->
