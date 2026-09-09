@@ -97,19 +97,6 @@ export function useBusinessSettingsProvider() {
       }
 
       const value = match?.value ?? null
-
-      // Cache-busting for images (logo/header_logo), because admins may update
-      if (key === 'header_logo' && typeof value === 'string' && value) {
-        try {
-          const url = new URL(value, window.location.origin)
-          url.searchParams.set('_v', String(Date.now()))
-          return url.toString()
-        } catch (e) {
-          // If it's not a valid URL, fallback to appending a param
-          return value + (value.includes('?') ? '&' : '?') + '_v=' + Date.now()
-        }
-      }
-
       return value
     },
     reload: () => {
