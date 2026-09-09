@@ -128,17 +128,17 @@ function handleDecrease() {
 </script>
 
 <template>
-  <article class="organic-product bg-white rounded-lg border border-[#edf1ed] shadow-[0_2px_10px_rgba(16,60,35,0.07)] hover:shadow-[0_10px_24px_rgba(16,60,35,0.14)] transition-shadow duration-200 flex flex-col justify-between group relative p-2.5">
+  <article class="organic-product bg-white rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all duration-200 flex flex-col justify-between group relative p-3 sm:p-4">
     <!-- Top Content Area -->
     <div class="flex flex-col flex-1">
       <!-- Product Image Container -->
-      <router-link :to="`/products/${deal.slug || deal.id}`" class="block rounded-lg focus-visible:outline-2 focus-visible:outline-[#075c32]">
-        <div class="organic-product-image relative aspect-square w-full overflow-hidden flex items-center justify-center p-2 mb-3 bg-[#f4f6f4] rounded-lg">
+      <router-link :to="`/products/${deal.slug || deal.id}`" class="block rounded-md focus-visible:outline-2 focus-visible:outline-[#168039]">
+        <div class="organic-product-image relative aspect-square w-full overflow-hidden flex items-center justify-center p-2 mb-2 bg-white">
           <img
             v-if="displayImage"
             :src="displayImage"
             :alt="deal.title"
-            class="w-full h-full object-contain transition-transform duration-200 group-hover:scale-[1.04]"
+            class="w-full h-full object-contain transition-transform duration-200 group-hover:scale-[1.03]"
             @error="imageFailed = true"
             loading="lazy"
           />
@@ -147,8 +147,8 @@ function handleDecrease() {
           </div>
 
           <!-- Discount Badge -->
-          <div v-if="deal.discountPercent > 0" class="absolute top-2 left-2 z-10">
-            <div class="bg-[#ed6a25] text-white font-semibold px-2 py-1 rounded-[4px] text-[11px] leading-tight shadow-xs select-none">
+          <div v-if="deal.discountPercent > 0" class="absolute top-1.5 right-1.5 z-10">
+            <div class="bg-[#168039] text-white font-bold px-2 py-0.5 rounded-[4px] text-[11px] leading-tight shadow-xs select-none">
               <template v-if="savings">
                 <span>-{{ savings }}৳</span>
               </template>
@@ -160,25 +160,15 @@ function handleDecrease() {
         </div>
       </router-link>
 
-      <button
-        type="button"
-        :aria-label="wishlisted ? 'Remove from wishlist' : 'Add to wishlist'"
-        :aria-pressed="wishlisted"
-        class="absolute top-2 right-2 z-20 w-9 h-9 rounded-full bg-white/95 text-[#172019] flex items-center justify-center shadow-sm hover:text-[#075c32] cursor-pointer transition-colors"
-        @click.stop="wishlisted = !wishlisted"
-      >
-        <Heart class="w-4.5 h-4.5" :class="wishlisted ? 'fill-[#075c32] text-[#075c32]' : ''" />
-      </button>
-
       <!-- Title -->
       <router-link :to="`/products/${deal.slug || deal.id}`" class="block focus-visible:outline-2 focus-visible:outline-[#168039]">
-        <h3 class="text-[14px] leading-[21px] font-normal text-[#111827] line-clamp-2 min-h-[2.6rem] hover:text-[#146c30] transition-colors">
+        <h3 class="text-[13px] sm:text-[14px] leading-[20px] font-normal text-gray-800 line-clamp-2 min-h-[2.5rem] hover:text-[#168039] transition-colors font-sans">
           {{ deal.title }}
         </h3>
       </router-link>
 
       <!-- Unit / Weight / Quantity info -->
-      <div class="text-[12px] font-medium text-[#6b7280] uppercase tracking-wide my-1">
+      <div class="text-[11px] font-normal text-gray-500 uppercase tracking-wide mt-1.5 mb-1">
         {{ unitText }}
       </div>
 
@@ -187,17 +177,17 @@ function handleDecrease() {
         <Star v-for="i in fullStars" :key="'f' + i" class="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
         <StarHalf v-if="hasHalf" class="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
         <Star v-for="i in emptyStars" :key="'e' + i" class="w-3.5 h-3.5 fill-gray-200 text-gray-200" />
-        <span v-if="hasReviews" class="text-[12px] text-[#6b7280] ml-1">({{ reviewCount }})</span>
+        <span v-if="hasReviews" class="text-[11px] text-gray-500 ml-1">({{ reviewCount }})</span>
       </div>
 
       <!-- Price -->
-      <div class="flex items-baseline gap-2 mt-auto pt-1 mb-2.5">
-        <span class="text-[16px] font-bold text-[#111827] tracking-tight">
+      <div class="flex items-baseline gap-2 mt-auto pt-1 mb-3">
+        <span class="text-sm sm:text-base font-bold text-gray-900 tracking-tight font-sans">
           {{ formattedPrice }}
         </span>
         <span
           v-if="deal.originalPrice > deal.discountedPrice && deal.discountedPrice != null"
-          class="text-[12px] text-[#6b7280] line-through font-normal"
+          class="text-xs text-gray-400 line-through font-normal"
         >
           TK {{ Number(deal.originalPrice).toFixed(2) }}
         </span>
@@ -209,24 +199,24 @@ function handleDecrease() {
       <!-- Quantity Controller Bar (When item is in cart) -->
       <div
         v-if="cartQty > 0"
-          class="w-full bg-[#075c32] hover:bg-[#064526] active:bg-[#064526] text-white font-medium rounded-[5px] flex items-center justify-between h-9 px-1 shadow-2xs transition-colors select-none border border-[#075c32]"
+        class="w-full bg-[#168039] hover:bg-[#146c30] active:bg-[#146c30] text-white font-bold rounded-md flex items-center justify-between h-9 px-1 shadow-2xs transition-colors select-none border border-[#146c30]"
       >
         <button
           @click.stop="handleDecrease"
           aria-label="Decrease quantity"
-          class="w-7 h-7 flex items-center justify-center rounded-[4px] hover:bg-black/15 active:bg-black/25 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-white"
+          class="w-7 h-7 flex items-center justify-center rounded hover:bg-black/15 active:bg-black/25 transition-colors cursor-pointer text-white"
         >
           <Minus class="w-3.5 h-3.5 stroke-[2.5]" />
         </button>
 
-        <span class="flex-1 text-center font-semibold text-[14px] leading-none">
+        <span class="flex-1 text-center font-bold text-sm leading-none text-white select-none">
           {{ cartQty }}
         </span>
 
         <button
           @click.stop="handleIncrease"
           aria-label="Increase quantity"
-          class="w-7 h-7 flex items-center justify-center rounded-[4px] hover:bg-black/15 active:bg-black/25 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-white"
+          class="w-7 h-7 flex items-center justify-center rounded hover:bg-black/15 active:bg-black/25 transition-colors cursor-pointer text-white"
         >
           <Plus class="w-3.5 h-3.5 stroke-[2.5]" />
         </button>
@@ -237,9 +227,9 @@ function handleDecrease() {
         v-else
         @click.stop="handleAddToCart"
         :aria-label="`${deal.title}: ${t('add_to_cart')}`"
-        class="w-fit min-w-[108px] h-9 px-4 border border-[#075c32] text-white hover:bg-[#064526] bg-[#075c32] rounded-[5px] text-[12px] font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-2xs cursor-pointer focus-visible:outline-2 focus-visible:outline-[#075c32] focus-visible:outline-offset-2"
+        class="w-full h-9 border border-gray-300 hover:border-[#168039] text-gray-800 hover:text-[#168039] bg-white rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer focus-visible:outline-2 focus-visible:outline-[#168039]"
       >
-        <ShoppingBag class="w-4 h-4" />
+        <ShoppingBag class="w-3.5 h-3.5 text-gray-700 group-hover:text-[#168039]" />
         <span>{{ t('add_to_cart') }}</span>
       </button>
     </div>
