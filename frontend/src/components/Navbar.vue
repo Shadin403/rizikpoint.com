@@ -134,11 +134,12 @@ const vFocus = { mounted: (el) => el.focus() };
         <router-link to="/" class="rp-brand" aria-label="Rizik Point home">
           <template v-if="logoLoading">
             <span class="rp-brand-loading-mark" aria-hidden="true"></span>
-            <span class="rp-brand-loading-copy" aria-hidden="true"><i></i><i></i></span>
+          </template>
+          <template v-else-if="headerLogo && !logoError">
+            <img :src="headerLogo" alt="Rizik Point" @error="logoError = true" />
           </template>
           <template v-else>
-            <img v-if="headerLogo && !logoError" :src="headerLogo" alt="Rizik Point" @error="logoError = true" />
-            <span v-else class="rp-brand-mark" aria-hidden="true"></span>
+            <span class="rp-brand-mark" aria-hidden="true"></span>
             <span><b>{{ appName }}</b><small>Ready to Cook</small></span>
           </template>
         </router-link>
@@ -180,7 +181,8 @@ const vFocus = { mounted: (el) => el.focus() };
     <header class="rp-mobile-header">
       <button type="button" aria-label="Open menu" @click="menuOpen = true"><Menu /></button>
       <router-link to="/" class="rp-mobile-brand">
-        <template v-if="logoLoading"><span class="rp-brand-loading-mark" aria-hidden="true"></span><span class="rp-brand-loading-copy" aria-hidden="true"><i></i><i></i></span></template>
+        <template v-if="logoLoading"><span class="rp-brand-loading-mark" aria-hidden="true"></span></template>
+        <template v-else-if="headerLogo && !logoError"><img :src="headerLogo" alt="Rizik Point" class="h-8 w-auto object-contain" @error="logoError = true" /></template>
         <template v-else><span class="rp-brand-mark" aria-hidden="true"></span><span><b>Rizik Point</b><small>Ready to Cook</small></span></template>
       </router-link>
       <div><button type="button" aria-label="Search" @click="toggleSearch"><Search /></button><button type="button" aria-label="Cart" class="rp-cart-action" @click="openCart"><ShoppingCart /><span v-if="totalItems" class="rp-cart-count">{{ totalItems }}</span></button></div>
@@ -190,7 +192,13 @@ const vFocus = { mounted: (el) => el.focus() };
     <transition name="fade">
       <div v-if="menuOpen" class="rp-drawer-layer" @click.self="menuOpen = false">
         <aside class="rp-drawer">
-          <div class="rp-drawer-head"><router-link to="/" class="rp-mobile-brand" @click="menuOpen = false"><span class="rp-brand-mark" aria-hidden="true"></span><span><b>Rizik Point</b><small>Ready to Cook</small></span></router-link><button type="button" aria-label="Close menu" @click="menuOpen = false"><X /></button></div>
+          <div class="rp-drawer-head">
+            <router-link to="/" class="rp-mobile-brand" @click="menuOpen = false">
+              <img v-if="headerLogo && !logoError" :src="headerLogo" alt="Rizik Point" class="h-8 w-auto object-contain" @error="logoError = true" />
+              <template v-else><span class="rp-brand-mark" aria-hidden="true"></span><span><b>Rizik Point</b><small>Ready to Cook</small></span></template>
+            </router-link>
+            <button type="button" aria-label="Close menu" @click="menuOpen = false"><X /></button>
+          </div>
           <nav class="rp-drawer-links">
             <router-link to="/" @click="menuOpen = false">{{ locale === "bn" ? "হোম" : "Home" }}</router-link>
             <router-link to="/categories" @click="menuOpen = false">{{ locale === "bn" ? "ক্যাটাগরি" : "Categories" }}</router-link>
