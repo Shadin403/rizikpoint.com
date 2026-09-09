@@ -224,9 +224,9 @@ const vFocus = { mounted: (el) => el.focus() };
 .rp-topbar i { opacity: .55; font-style: normal; }
 .rp-topbar strong { font-size: 11px; }
 .rp-header { position: sticky; top: 0; background: #fff; box-shadow: 0 1px 0 rgba(0,0,0,.06); }
-.rp-nav-row { min-height: 82px; display: grid; grid-template-columns: 220px 1fr auto; align-items: center; gap: 20px; }
+.rp-nav-row { min-height: 82px; display: grid; grid-template-columns: 240px 1fr auto; align-items: center; gap: 20px; }
 .rp-brand, .rp-mobile-brand { display: inline-flex; align-items: center; gap: 9px; color: #075d32; white-space: nowrap; }
-.rp-brand img { width: 150px; max-height: 58px; object-fit: contain; }
+.rp-brand img { width: 175px; max-height: 68px; object-fit: contain; }
 .rp-brand-loading-mark { width: 150px; height: 48px; display: block; border-radius: 6px; background: linear-gradient(90deg, #e7ece8 25%, #f5f7f5 50%, #e7ece8 75%); background-size: 200% 100%; animation: rp-navbar-shimmer 1.4s ease-in-out infinite; }
 .rp-brand-loading-copy { display: flex; flex-direction: column; gap: 6px; }
 .rp-brand-loading-copy i { display: block; width: 92px; height: 14px; border-radius: 4px; background: #e7ece8; animation: rp-navbar-pulse 1.4s ease-in-out infinite; }
